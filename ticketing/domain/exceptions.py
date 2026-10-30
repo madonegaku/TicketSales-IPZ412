@@ -7,9 +7,15 @@ class DomainError(Exception):
     Шар подання перехоплює саме його, щоб показати користувачеві зрозуміле
     повідомлення, не знаючи деталей конкретного правила.
     """
+
+
 class InvalidMoneyError(DomainError):
     """Порушено інваріант грошової суми."""
 
 
 class CurrencyMismatchError(DomainError):
     """Спроба виконати дію над сумами в різних валютах."""
+
+
+class InvalidSeatPositionError(DomainError):
+    """Порушено інваріант позиції місця в схемі залу."""

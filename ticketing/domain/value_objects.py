@@ -3,7 +3,11 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from ticketing.domain.exceptions import CurrencyMismatchError, InvalidMoneyError
+from ticketing.domain.exceptions import (
+    CurrencyMismatchError,
+    InvalidMoneyError,
+    InvalidSeatPositionError,
+)
 
 
 @dataclass(frozen=True)
@@ -31,3 +35,22 @@ class Money:
         if self.currency != other.currency:
             raise CurrencyMismatchError("Не можна додавати суми в різних валютах.")
         return Money(self.amount + other.amount, self.currency)
+
+
+@dataclass(frozen=True)
+class SeatPosition:
+    """Позиція місця в схемі залу.
+
+    Інваріанти: сектор – непорожня назва (наприклад, «Партер»);
+    ряд і номер місця – цілі числа, не менші за 1.
+    """
+
+    sector: str
+    row: int
+    number: int
+
+    def __post_init__(self) -> None:
+        if not self.sector.strip():
+            raise InvalidSeatPositionError("Сектор має бути непорожньою назвою.")
+        if self.row < 1 or self.number < 1:
+            raise InvalidSeatPositionError("Ряд і номер місця мають бути не меншими за 1.")

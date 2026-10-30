@@ -39,3 +39,7 @@ class InvalidSeatSelectionError(DomainError):
 
 class UnknownPriceCategoryError(DomainError):
     """Місце посилається на цінову категорію, якої немає в заході."""
+
+
+class ReservationLimitError(DomainError):
+    """Порушено обмеження кількості місць у резервуванні (від 1 до 6, С-06)."""

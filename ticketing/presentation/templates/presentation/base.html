@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Квитки{% endblock %}</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .error { color: #b00020; font-weight: bold; }
+    .seat { display: inline-block; margin: 2px 4px; }
+    .seat input:disabled + span { color: #aaa; text-decoration: line-through; }
+  </style>
+</head>
+<body>
+  <nav><a href="/">Афіша</a> · <a href="/validate/">Контроль на вході</a></nav>
+  {% block content %}{% endblock %}
+</body>
+</html>

@@ -1,22 +1,23 @@
-"""
-URL configuration for config project.
+"""Маршрути URL. Тут view отримують сценарії з контейнера – це частина точки складання."""
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from django.contrib import admin
+from functools import partial
+
 from django.urls import path
+from django.views.generic import RedirectView
+
+from config.container import container
+from ticketing.infrastructure.demo_data import DEMO_EVENT_ID
+from ticketing.presentation import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("", RedirectView.as_view(url=f"/events/{DEMO_EVENT_ID}/")),
+    path(
+        "events/<uuid:event_id>/",
+        partial(
+            views.hall,
+            get_hall_layout=container.get_hall_layout,
+            reserve_seats=container.reserve_seats,
+        ),
+        name="hall",
+    ),
 ]

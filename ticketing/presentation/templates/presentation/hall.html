@@ -1,0 +1,33 @@
+{% extends "presentation/base.html" %}
+
+{% block title %}{{ layout.title }}{% endblock %}
+
+{% block content %}
+<h1>{{ layout.title }}</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  {% regroup layout.seats by sector as sectors %}
+  {% for sector in sectors %}
+    {% with first=sector.list.0 %}
+      <h2>{{ sector.grouper }} – {{ first.price }} {{ first.currency }}</h2>
+    {% endwith %}
+    {% regroup sector.list by row as rows %}
+    {% for row in rows %}
+      <div>
+        Ряд {{ row.grouper }}:
+        {% for seat in row.list %}
+          <label class="seat" title="{{ seat.category }}, {{ seat.price }} {{ seat.currency }}">
+            <input type="checkbox" name="seat"
+                   value="{{ seat.sector }}|{{ seat.row }}|{{ seat.number }}"
+                   {% if not seat.is_available %}disabled{% endif %}>
+            <span>{{ seat.number }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  {% endfor %}
+  <p><button type="submit">Зарезервувати обрані місця</button></p>
+</form>
+{% endblock %}

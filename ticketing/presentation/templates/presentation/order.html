@@ -1,0 +1,13 @@
+{% extends "presentation/base.html" %}
+
+{% block title %}Оплата замовлення{% endblock %}
+
+{% block content %}
+<h1>Оплата замовлення</h1>
+<p>До сплати: <strong>{{ order.total_amount }} {{ order.currency }}</strong></p>
+<p>Місця зарезервовано – оплатіть до {{ order.pay_until|date:"H:i:s" }}.</p>
+<form method="post" action="/orders/{{ order.order_id }}/pay/">
+  {% csrf_token %}
+  <button type="submit">Оплатити</button>
+</form>
+{% endblock %}

@@ -9,6 +9,7 @@ import pytest
 from ticketing.domain.event import Event, PriceCategory, Seat, SeatStatus
 from ticketing.domain.exceptions import (
     InvalidSeatSelectionError,
+    InvalidSeatTransitionError,
     SalesNotStartedError,
     SeatNotAvailableError,
     UnknownPriceCategoryError,
@@ -95,3 +96,23 @@ def test_price_of_seat_is_its_category_price():
 def test_event_with_seat_in_unknown_category_cannot_be_created():
     with pytest.raises(UnknownPriceCategoryError):
         Event(uuid4(), "Концерт", SALES_START, {}, {A1: Seat(A1, "Партер")})
+
+
+def test_reserved_seats_are_sold():
+    event = make_event()
+    event.reserve_seats([A1, VIP], now=AFTER_START)
+
+    event.sell_seats([A1, VIP])
+
+    assert event.seats[A1].status is SeatStatus.SOLD
+    assert event.seats[VIP].status is SeatStatus.SOLD
+
+
+def test_selling_is_all_or_nothing():
+    event = make_event()
+    event.reserve_seats([A1], now=AFTER_START)
+
+    with pytest.raises(InvalidSeatTransitionError):
+        event.sell_seats([A1, A2])
+
+    assert event.seats[A1].status is SeatStatus.RESERVED

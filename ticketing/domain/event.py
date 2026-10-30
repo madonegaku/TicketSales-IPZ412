@@ -95,6 +95,15 @@ class Event:
         for seat in seats:
             seat.reserve()
 
+    def sell_seats(self, positions: list[SeatPosition]) -> None:
+        """Продає всі зарезервовані місця замовлення або жодне."""
+        seats = self._find_seats(positions)
+        for seat in seats:
+            if seat.status is not SeatStatus.RESERVED:
+                raise InvalidSeatTransitionError(f"Місце {seat.position} не зарезервоване.")
+        for seat in seats:
+            seat.sell()
+
     def price_of(self, position: SeatPosition) -> Money:
         seat = self._find_seats([position])[0]
         return self.categories[seat.category].price

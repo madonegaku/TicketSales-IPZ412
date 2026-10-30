@@ -27,3 +27,15 @@ class SeatNotAvailableError(DomainError):
 
 class InvalidSeatTransitionError(DomainError):
     """Заборонений перехід стану місця."""
+
+
+class SalesNotStartedError(DomainError):
+    """Продаж квитків на захід ще не розпочався."""
+
+
+class InvalidSeatSelectionError(DomainError):
+    """Вибір місць некоректний: місця немає в схемі залу або його обрано двічі."""
+
+
+class UnknownPriceCategoryError(DomainError):
+    """Місце посилається на цінову категорію, якої немає в заході."""

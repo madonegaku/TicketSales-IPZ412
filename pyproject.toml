@@ -1,0 +1,18 @@
+[tool.importlinter]
+root_package = "ticketing"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Шари ядра: presentation | infrastructure → application → domain"
+type = "layers"
+layers = [
+    "ticketing.presentation | ticketing.infrastructure",
+    "ticketing.application",
+    "ticketing.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Домен і застосунок не залежать від Django"
+type = "forbidden"
+source_modules = ["ticketing.domain", "ticketing.application"]
+forbidden_modules = ["django"]

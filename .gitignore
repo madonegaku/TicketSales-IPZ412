@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Локальні файли (не для git)
+CLAUDE.md
+CLAUDE.local.md
+materials/

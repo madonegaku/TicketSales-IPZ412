@@ -67,3 +67,7 @@ class TicketAlreadyUsedError(DomainError):
 
 class InvalidTicketError(DomainError):
     """Квиток недійсний: повернений, виданий на інший захід або не підлягає поверненню."""
+
+
+class NotFoundError(DomainError):
+    """Об'єкт не знайдено в репозиторії."""

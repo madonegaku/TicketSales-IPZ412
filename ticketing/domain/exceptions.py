@@ -71,3 +71,7 @@ class InvalidTicketError(DomainError):
 
 class NotFoundError(DomainError):
     """Об'єкт не знайдено в репозиторії."""
+
+
+class PaymentDeclinedError(DomainError):
+    """Платіжний шлюз відхилив платіж."""

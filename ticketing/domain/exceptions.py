@@ -19,3 +19,11 @@ class CurrencyMismatchError(DomainError):
 
 class InvalidSeatPositionError(DomainError):
     """Порушено інваріант позиції місця в схемі залу."""
+
+
+class SeatNotAvailableError(DomainError):
+    """Місце не можна зарезервувати: воно вже зарезервоване або продане."""
+
+
+class InvalidSeatTransitionError(DomainError):
+    """Заборонений перехід стану місця."""

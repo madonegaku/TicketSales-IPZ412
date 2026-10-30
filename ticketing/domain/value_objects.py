@@ -54,3 +54,7 @@ class SeatPosition:
             raise InvalidSeatPositionError("Сектор має бути непорожньою назвою.")
         if self.row < 1 or self.number < 1:
             raise InvalidSeatPositionError("Ряд і номер місця мають бути не меншими за 1.")
+
+
+    def __str__(self) -> str:
+        return f"{self.sector}, ряд {self.row}, № {self.number}"

@@ -43,3 +43,15 @@ class UnknownPriceCategoryError(DomainError):
 
 class ReservationLimitError(DomainError):
     """Порушено обмеження кількості місць у резервуванні (від 1 до 6, С-06)."""
+
+
+class InvalidOrderError(DomainError):
+    """Порушено інваріант або заборонений перехід стану замовлення."""
+
+
+class ReservationExpiredError(DomainError):
+    """Строк резервування минув – розпочати оплату вже не можна (С-04)."""
+
+
+class OrderAlreadyPaidError(DomainError):
+    """Замовлення вже оплачене – повторна оплата неможлива (С-05)."""

@@ -7,6 +7,7 @@
 
 from datetime import datetime, timezone
 
+from ticketing.application.get_hall_layout import GetHallLayout
 from ticketing.application.pay_order import PayOrder
 from ticketing.application.reserve_seats import ReserveSeats
 from ticketing.application.validate_ticket import ValidateTicket
@@ -34,6 +35,7 @@ class Container:
         tickets = InMemoryTicketRepository()
         seed_demo_event(events)
 
+        self.get_hall_layout = GetHallLayout(events)
         self.reserve_seats = ReserveSeats(events, reservations, orders, utc_now)
         self.pay_order = PayOrder(events, orders, tickets, StubPaymentGateway(), utc_now)
         self.validate_ticket = ValidateTicket(tickets)

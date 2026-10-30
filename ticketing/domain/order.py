@@ -42,6 +42,7 @@ class Order:
 
     id: UUID
     reservation_id: UUID
+    event_id: UUID
     lines: tuple[OrderLine, ...]
     payment_deadline: datetime
     status: OrderStatus = OrderStatus.AWAITING_PAYMENT
@@ -58,7 +59,7 @@ class Order:
         lines = tuple(
             OrderLine(position, event.price_of(position)) for position in reservation.positions
         )
-        return cls(uuid4(), reservation.id, lines, reservation.expires_at)
+        return cls(uuid4(), reservation.id, event.id, lines, reservation.expires_at)
 
     @property
     def total(self) -> Money:

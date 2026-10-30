@@ -8,8 +8,11 @@ from uuid import UUID
 
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
+
 
 from ticketing.application.get_hall_layout import GetHallLayout
+from ticketing.application.pay_order import PayOrder, PayOrderCommand
 from ticketing.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
 from ticketing.domain.exceptions import DomainError, NotFoundError
 
@@ -50,3 +53,13 @@ def hall(
     except NotFoundError:
         raise Http404("Захід не знайдено.")
     return render(request, "presentation/hall.html", {"layout": layout, "error": error})
+
+
+@require_POST
+def pay(request: HttpRequest, order_id: UUID, *, pay_order: PayOrder) -> HttpResponse:
+    """Оплачує замовлення та показує коди квитків або причину відмови."""
+    try:
+        result = pay_order.execute(PayOrderCommand(order_id))
+    except DomainError as exc:
+        return render(request, "presentation/payment.html", {"error": str(exc)})
+    return render(request, "presentation/payment.html", {"ticket_codes": result.ticket_codes})

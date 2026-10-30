@@ -20,4 +20,9 @@ urlpatterns = [
         ),
         name="hall",
     ),
+        path(
+        "orders/<uuid:order_id>/pay/",
+        partial(views.pay, pay_order=container.pay_order),
+        name="pay",
+    ),
 ]

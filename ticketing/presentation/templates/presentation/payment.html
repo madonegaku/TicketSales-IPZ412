@@ -1,0 +1,19 @@
+{% extends "presentation/base.html" %}
+
+{% block title %}Результат оплати{% endblock %}
+
+{% block content %}
+{% if error %}
+  <h1>Оплату не виконано</h1>
+  <p class="error">{{ error }}</p>
+  <p><a href="/">Повернутися до вибору місць</a></p>
+{% else %}
+  <h1>Оплату виконано</h1>
+  <p>Ваші квитки – покажіть код контролерові на вході:</p>
+  <ul>
+    {% for code in ticket_codes %}
+      <li><code>{{ code }}</code></li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}

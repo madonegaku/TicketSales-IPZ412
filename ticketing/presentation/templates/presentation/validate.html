@@ -1,0 +1,20 @@
+{% extends "presentation/base.html" %}
+
+{% block title %}Контроль на вході{% endblock %}
+
+{% block content %}
+<h1>Контроль на вході</h1>
+{% if seat %}
+  <p class="ok">Прохід дозволено: {{ seat.sector }}, ряд {{ seat.row }}, місце {{ seat.number }}.</p>
+{% endif %}
+{% if error %}
+  <p class="error">Прохід заборонено: {{ error }}</p>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  <p><label>Захід: <input name="event_id" value="{{ event_id }}" size="40"></label></p>
+  <p><label>Код із QR: <input name="code" size="30" autofocus></label></p>
+  <button type="submit">Перевірити</button>
+</form>
+{% endblock %}

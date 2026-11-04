@@ -15,6 +15,7 @@ class TicketView:
     row: int
     number: int
     status: str
+    state: str = ""  # стабільний код стану для API (VALID, USED, REFUNDED); status – текст для сторінки
 
 
 class GetOrderTickets:
@@ -31,6 +32,7 @@ class GetOrderTickets:
                 ticket.position.row,
                 ticket.position.number,
                 ticket.status.value,
+                ticket.status.name,
             )
             for ticket in self._tickets.list_by_order(order_id)
         ]

@@ -26,6 +26,7 @@ from sales.infrastructure.in_memory import (
     InMemoryOrderRepository,
     InMemoryOutbox,
     InMemoryReservationRepository,
+    InMemoryUnitOfWork,
 )
 from sales.infrastructure.outbox_relay import OutboxRelay
 from sales.infrastructure.payments_client import HttpPaymentGateway
@@ -52,12 +53,15 @@ class Container:
         events = InMemoryEventRepository()
         reservations = InMemoryReservationRepository()
         orders = InMemoryOrderRepository()
+        unit_of_work = InMemoryUnitOfWork()
         seed_demo_event(events)
 
         self.get_hall_layout = GetHallLayout(events)
-        self.reserve_seats = ReserveSeats(events, reservations, orders, utc_now)
+        self.reserve_seats = ReserveSeats(events, reservations, orders, utc_now, unit_of_work)
         self.outbox = InMemoryOutbox()
-        self.pay_order = PayOrder(events, orders, self.create_payment_gateway(), self.outbox, utc_now)
+        self.pay_order = PayOrder(
+            events, orders, self.create_payment_gateway(), self.outbox, utc_now, unit_of_work
+        )
         self.outbox_relay = OutboxRelay(PublishPendingEvents(self.outbox, self.create_event_publisher()))
 
     def create_payment_gateway(self) -> PaymentGateway:

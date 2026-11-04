@@ -14,6 +14,7 @@ from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
+    InMemoryUnitOfWork,
 )
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
@@ -38,7 +39,7 @@ def orders():
 
 @pytest.fixture
 def reserve_seats(events, orders):
-    return ReserveSeats(events, InMemoryReservationRepository(), orders, clock=lambda: NOW)
+    return ReserveSeats(events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork())
 
 
 def command(*numbers):

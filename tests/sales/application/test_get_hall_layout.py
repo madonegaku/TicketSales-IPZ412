@@ -11,6 +11,7 @@ from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
+    InMemoryUnitOfWork,
 )
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
@@ -20,7 +21,7 @@ def test_hall_layout_shows_prices_and_reserved_seats():
     events = InMemoryEventRepository()
     seed_demo_event(events)
     reserve_seats = ReserveSeats(
-        events, InMemoryReservationRepository(), InMemoryOrderRepository(), lambda: NOW
+        events, InMemoryReservationRepository(), InMemoryOrderRepository(), lambda: NOW, InMemoryUnitOfWork()
     )
     reserve_seats.execute(ReserveSeatsCommand(DEMO_EVENT_ID, uuid4(), (("VIP", 1, 1),)))
 

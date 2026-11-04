@@ -42,10 +42,17 @@ class PostgresEventRepository(EventRepository):
         self._db = database
 
     def get(self, event_id: UUID) -> Event:
+        return self._load(event_id, lock=False)
+
+    def get_for_update(self, event_id: UUID) -> Event:
+        """SELECT … FOR UPDATE на рядку events: усі сценарії, що змінюють місця заходу, блокують
+        цей рядок першими, тож змінюють місця одного заходу по черзі (С-03)."""
+        return self._load(event_id, lock=True)
+
+    def _load(self, event_id: UUID, lock: bool) -> Event:
+        sql = "SELECT id, title, sales_start, starts_at FROM events WHERE id = %s" + (" FOR UPDATE" if lock else "")
         with self._db.connection() as connection:
-            row = connection.execute(
-                "SELECT id, title, sales_start, starts_at FROM events WHERE id = %s", (event_id,)
-            ).fetchone()
+            row = connection.execute(sql, (event_id,)).fetchone()
             if row is None:
                 raise NotFoundError("Захід не знайдено.")
             categories = connection.execute(
@@ -129,11 +136,16 @@ class PostgresOrderRepository(OrderRepository):
         self._db = database
 
     def get(self, order_id: UUID) -> Order:
+        return self._load(order_id, lock=False)
+
+    def get_for_update(self, order_id: UUID) -> Order:
+        """SELECT … FOR UPDATE: два одночасні запити оплати одного замовлення виконуються по черзі."""
+        return self._load(order_id, lock=True)
+
+    def _load(self, order_id: UUID, lock: bool) -> Order:
+        sql = "SELECT id, reservation_id, event_id, payment_deadline, status FROM orders WHERE id = %s"
         with self._db.connection() as connection:
-            row = connection.execute(
-                "SELECT id, reservation_id, event_id, payment_deadline, status FROM orders WHERE id = %s",
-                (order_id,),
-            ).fetchone()
+            row = connection.execute(sql + (" FOR UPDATE" if lock else ""), (order_id,)).fetchone()
             if row is None:
                 raise NotFoundError("Замовлення не знайдено.")
             lines = connection.execute(

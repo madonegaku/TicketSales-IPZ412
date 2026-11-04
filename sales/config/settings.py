@@ -137,5 +137,10 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 SALES_DATABASE_URL = os.environ.get("SALES_DATABASE_URL") or None
 
 
+# Секрет підпису токенів доступу від сервісу web (ADR-006); спільний для web, sales і tickets.
+# Значення за замовчуванням – лише для розробки; у Docker задає змінна середовища.
+AUTH_TOKEN_SECRET = os.environ.get("AUTH_TOKEN_SECRET", "dev-only-change-me-ticketsales-web-token")
+
+
 # Кеш схеми залу в Redis (ЛР 5): час життя запису в секундах; 0 – кеш вимкнено.
 HALL_LAYOUT_CACHE_TTL = int(os.environ.get("HALL_LAYOUT_CACHE_TTL", "30"))

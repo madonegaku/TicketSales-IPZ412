@@ -52,3 +52,7 @@ TICKETS_DB_PATH = os.environ.get("TICKETS_DB_PATH", str(BASE_DIR / "tickets.sqli
 
 # Брокер подій Redis (Streams); у Docker адресу задає змінна середовища.
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+
+# Секрет підпису токенів доступу від сервісу web (ADR-006); спільний для web, sales і tickets.
+# Значення за замовчуванням – лише для розробки; у Docker задає змінна середовища.
+AUTH_TOKEN_SECRET = os.environ.get("AUTH_TOKEN_SECRET", "dev-only-change-me-ticketsales-web-token")

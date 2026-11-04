@@ -18,7 +18,7 @@
 
 | | |
 | --- | --- |
-| **Архітектурний стиль** | Три сервіси за доменними контекстами (sales, payments, tickets), шлюз і брокер подій ([ADR-004](docs/adr/0004-service-boundaries-and-interaction.md), замінює [ADR-001](docs/adr/0001-architecture-style.md)) |
+| **Архітектурний стиль** | Три сервіси за доменними контекстами (sales, payments, tickets), шлюз і брокер подій ([ADR-004](docs/adr/0004-service-boundaries-and-interaction.md), замінює [ADR-001](docs/adr/0001-architecture-style.md)); інтерфейс із ролями – окремий сервіс web на Meteor ([ADR-006](docs/adr/0006-web-ui-meteor.md)) |
 | **Технологічний стек** | Python 3.12, Django 5, PostgreSQL 16 (sales), SQLite (payments, tickets), Redis 7 (Streams і кеш), nginx, Docker Compose ([ADR-002](docs/adr/0002-technology-stack.md), [ADR-005](docs/adr/0005-sales-storage-postgresql.md)) |
 | **Найкритичніший атрибут якості** | Надійність: жодного подвійного продажу місця і жодного втраченого оплаченого замовлення |
 | **Зовнішні інтеграції** | LiqPay, Email-сервіс, Google reCAPTCHA, ПРРО Checkbox |
@@ -46,6 +46,7 @@
 - [ADR-003: Доменна модель відокремлена від Django ORM](docs/adr/0003-domain-independent-of-orm.md)
 - [ADR-004: Межі сервісів за доменними контекстами та способи їх взаємодії](docs/adr/0004-service-boundaries-and-interaction.md)
 - [ADR-005: Сховище sales – PostgreSQL з доступом через SQL, власні міграції та транзакційна вихідна черга](docs/adr/0005-sales-storage-postgresql.md)
+- [ADR-006: Інтерфейс користувачів – окремий сервіс web на Meteor з ролями та токеном доступу](docs/adr/0006-web-ui-meteor.md)
 
 Записи зберігаються в каталозі [`docs/adr/`](docs/adr/). Прийняті записи не редагуються заднім числом: перегляд рішення оформлюється новим записом зі статусом «замінює ADR-00N» (правила – у [docs/adr/README.md](docs/adr/README.md)).
 
@@ -143,6 +144,42 @@ lint-imports
 
 Вимірювання: `tools/latency.py`, `tools/compare_cache.py`, `tools/order_paid_lag.py`; повторне надсилання події – `tools/resend_last_order_paid.py`.
 
+## Інтерфейс користувачів на Meteor (доробка після ЛР 5)
+
+Сервіс **web** ([`web/`](web/), Meteor 3 + React) – вхід, реєстрація й чотири ролі з глосарію ЛР 1. Рішення – [ADR-006](docs/adr/0006-web-ui-meteor.md): web володіє обліковими записами й ролями (власна MongoDB), а заходи, замовлення й квитки отримує лише через JSON API sales і tickets, підписуючи на кожен виклик короткий JWT із `subjectId` і ролями користувача. Браузер до сервісів напряму не звертається, шлюз закриває `/api/` ззовні.
+
+| Роль | Можливості | JSON API |
+| --- | --- | --- |
+| Покупець | реєстрація, афіша, схема залу, резервування до 6 місць, оплата, «Мої замовлення» з QR-кодами квитків | sales: `/events`, `/events/{id}`, `/events/{id}/reservations`, `/orders`, `/orders/{id}/payment`; tickets: `/orders/{id}/tickets` |
+| Організатор | створення заходу (сектори, ряди, ціни, дати), статистика продажу своїх заходів | sales: `POST /events`, `/organizer/events` |
+| Контролер | перевірка коду квитка на вході обраного заходу | tickets: `/validations` |
+| Адміністратор | ролі й блокування користувачів, статистика всіх заходів | – (дані web) + sales: `/organizer/events` |
+
+Контракти: [contracts/sales.openapi.yaml](contracts/sales.openapi.yaml), [contracts/tickets.openapi.yaml](contracts/tickets.openapi.yaml). Права перевіряються тричі: в інтерфейсі, у методі Meteor і в сервісі за роллю з токена.
+
+**Запуск у Docker** – `docker compose up --build`, інтерфейс – http://localhost:8090/. Тестові облікові записи (лише для розробки; задаються змінними `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SEED_DEMO_USERS`):
+
+| Роль | Пошта | Пароль |
+| --- | --- | --- |
+| Адміністратор | `admin@ticketsales.local` | `admin-dev-password` |
+| Організатор | `organizer@ticketsales.local` | `organizer-dev-password` |
+| Контролер | `inspector@ticketsales.local` | `inspector-dev-password` |
+| Покупець | `buyer@ticketsales.local` | `buyer-dev-password` |
+
+**Розробка з гарячим оновленням** – сервіси в Docker (`docker compose up -d`), Meteor локально (sales і tickets доступні з хоста лише на `127.0.0.1:8100` і `:8200`):
+
+```
+cd web
+meteor npm install
+$env:RSPACK_DEVSERVER_PORT="3010"
+$env:SEED_DEMO_USERS="1"
+meteor run
+```
+
+Інтерфейс – http://localhost:3000/. `RSPACK_DEVSERVER_PORT` потрібен, бо за замовчуванням сервер розробки Rspack займає порт 8080 шлюзу. На Windows перший запуск може впасти на збиранні `argon2` («'cross-env' is not recognized»): `meteor npm install -g cross-env` і один раз додати каталог `dev_bundle` Meteor до `PATH` вікна (`$env:Path = "$env:LOCALAPPDATA\.meteor\packages\meteor-tool\3.5.4\mt-os.windows.x86_64\dev_bundle;$env:Path"`).
+
+Обмеження: автотестів інтерфейсу немає (перевірено вручну всі ролі); HS256 зі спільним секретом – для навчального проєкту (для експлуатації – RS256); tickets не знає покупця замовлення, власника перевіряє web у sales.
+
 ## Структура репозиторію
 
 ```
@@ -152,12 +189,13 @@ lint-imports
 ├── LICENSE
 ├── requirements.txt          # залежності сервісів і тестів
 ├── pyproject.toml            # контракти import-linter, налаштування pytest
-├── compose.yaml              # шлюз, три сервіси, споживач подій, Redis, PostgreSQL sales
+├── compose.yaml              # шлюз, три сервіси, споживач подій, Redis, PostgreSQL sales, web і MongoDB
 ├── Dockerfile                # образ одного сервісу (аргумент SERVICE)
 ├── manage.py                 # локальний запуск sales
 ├── tools/                    # показники коду (ЛР 4), вимірювання часу відповіді й неузгодженості (ЛР 5)
 ├── gateway/nginx.conf        # маршрути шлюзу
-├── contracts/                # OpenAPI payments, AsyncAPI OrderPaid
+├── contracts/                # OpenAPI payments, sales, tickets; AsyncAPI OrderPaid
+├── web/                      # інтерфейс користувачів на Meteor 3 + React (ADR-006)
 ├── sales/                    # domain, application, infrastructure, presentation, config
 ├── payments/                 # domain, application, infrastructure, presentation, config
 ├── tickets/                  # domain, application, infrastructure, presentation, config (+ consumer.py)
@@ -170,7 +208,7 @@ lint-imports
     ├── lab3/                 # межі сервісів, експеримент
     ├── lab4/                 # патерни: проблеми, показники, діаграми класів
     ├── lab5/                 # архітектура даних: моделі, володіння, кеш, вимірювання
-    ├── adr/                  # ADR-001 – ADR-005
+    ├── adr/                  # ADR-001 – ADR-006
     ├── assets/
     └── reports/              # звіти
 ```

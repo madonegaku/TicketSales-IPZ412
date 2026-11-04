@@ -129,3 +129,49 @@ def test_after_0003_v4_writes_without_old_column_and_v3_reads_it(db):
 
     assert read_amount_minor(db, "o4") == 120000, "v3 читає рядок, записаний v4"
     assert read_amount(db, "o4") is None
+
+
+def test_0004_keeps_all_payments_in_minor_units(db):
+    migrate(db, target=2)
+    v1_write(db, "o1", "600")
+    v2_write(db, "o2", "1500.00", 150000)
+    migrate(db, target=3)
+    db.execute(V4_WRITE, ("o4", "p-o4", 120000))
+    db.commit()
+
+    migrate(db, target=4)
+
+    rows = db.execute("SELECT order_id, amount_minor FROM payments ORDER BY order_id").fetchall()
+    assert rows == [("o1", 60000), ("o2", 150000), ("o4", 120000)]
+
+
+def test_after_0004_v4_works_and_old_column_is_gone(db):
+    migrate(db, target=4)
+
+    db.execute(V4_WRITE, ("o1", "p-o1", 60000))
+    db.commit()
+
+    columns = [row[1] for row in db.execute("PRAGMA table_info(payments)")]
+    assert read_amount_minor(db, "o1") == 60000
+    assert "amount" not in columns
+
+
+def test_0004_before_v4_would_break_v3(db):
+    """Чому скорочення – лише після переходу всіх екземплярів на v4: v3 ще пише amount."""
+    migrate(db, target=4)
+
+    with pytest.raises(sqlite3.OperationalError, match="amount"):
+        db.execute(V3_WRITE, ("o3", "p-o3", "1500.00", 150000))
+
+
+def test_0004_refuses_rows_without_minor_units(db):
+    """Якщо 0003 пропущено, скорочення не мовчки втрачає суми, а відкочується повністю."""
+    migrate(db, target=2)
+    v1_write(db, "o1", "600")
+    db.execute("INSERT INTO schema_migrations VALUES ('0003_backfill_amount_minor', 'пропущено')")
+    db.commit()
+
+    with pytest.raises(sqlite3.IntegrityError):
+        migrate(db, target=4)
+
+    assert read_amount(db, "o1") == "600"

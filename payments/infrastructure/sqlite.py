@@ -12,8 +12,8 @@ from payments.domain.repositories import PaymentRepository
 from payments.domain.value_objects import Money
 from payments.infrastructure.migrate import migrate
 
-# Сума зберігається лише в копійках (amount_minor). Старий стовпець amount більше не пишеться:
-# після 0002 він допускає NULL, а версія, що його читала, уже не працює – його можна вилучити (0004).
+# Сума зберігається цілим числом копійок (amount_minor); перехід з текстового amount виконано
+# міграціями 0002–0004 за шаблоном «розширення – скорочення».
 SELECT_BY_ORDER = """
 SELECT payment_id, order_id, amount_minor, currency, status, decline_reason, created_at
 FROM payments WHERE order_id = ?

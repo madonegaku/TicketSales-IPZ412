@@ -1,0 +1,69 @@
+
+sales/domain/order.py
+  клас OrderLine: гілки разом 0, вихідні залежності 3 – Money, SeatPosition, dataclass
+  клас Order: гілки разом 2, вихідні залежності 10 – Event, InvalidOrderError, Money, OrderStatus, Reservation, UUID, dataclass, datetime, state_of, uuid4
+    __post_init__(): гілки 1, рядки 2
+    for_reservation(): гілки 1, рядки 6
+    total(): гілки 0, рядки 2
+    start_payment(): гілки 0, рядки 1
+    start_or_resume_payment(): гілки 0, рядки 1
+    cancel_payment(): гілки 0, рядки 1
+    confirm_payment(): гілки 0, рядки 1
+
+sales/domain/order_state.py
+  клас OrderStatus: гілки разом 0, вихідні залежності 1 – Enum
+  клас OrderState: гілки разом 0, вихідні залежності 3 – ABC, InvalidOrderError, datetime
+    start_payment(): гілки 0, рядки 1
+    resume_payment(): гілки 0, рядки 1
+    cancel_payment(): гілки 0, рядки 1
+    confirm_payment(): гілки 0, рядки 1
+  клас AwaitingPayment: гілки разом 1, вихідні залежності 2 – ReservationExpiredError, datetime
+    start_payment(): гілки 1, рядки 3
+  клас PaymentPending: гілки разом 0, вихідні залежності 1 – datetime
+    resume_payment(): гілки 0, рядки 1
+    cancel_payment(): гілки 0, рядки 1
+    confirm_payment(): гілки 0, рядки 1
+  клас Paid: гілки разом 0, вихідні залежності 2 – OrderAlreadyPaidError, datetime
+    start_payment(): гілки 0, рядки 1
+    confirm_payment(): гілки 0, рядки 1
+  state_of(): гілки 0, рядки 1
+
+tickets/infrastructure/order_paid_consumer.py
+  to_command(): гілки 2, рядки 4
+  клас OrderPaidConsumer: гілки разом 5, вихідні залежності 6 – BrokerUnavailableError, IssueTickets, RedisConsumerGroup, StreamMessage, json, time
+    __init__(): гілки 0, рядки 2
+    ensure_group(): гілки 0, рядки 1
+    process_batch(): гілки 1, рядки 4
+    _handle(): гілки 1, рядки 8
+    run_forever(): гілки 3, рядки 9
+
+tickets/infrastructure/redis_stream.py
+  клас BrokerUnavailableError: гілки разом 0, вихідні залежності 0 – –
+  клас StreamMessage: гілки разом 0, вихідні залежності 1 – dataclass
+  клас RedisConsumerGroup: гілки разом 6, вихідні залежності 1 – redis
+    __init__(): гілки 0, рядки 4
+    ensure_exists(): гілки 3, рядки 7
+    read(): гілки 2, рядки 11
+    ack(): гілки 1, рядки 4
+
+sales/infrastructure/demo_data.py
+  seed_demo_event(): гілки 0, рядки 11
+
+sales/domain/event_builder.py
+  клас EventBuilder: гілки разом 6, вихідні залежності 8 – Event, Iterable, Money, PriceCategory, Seat, SeatPosition, UUID, datetime
+    __init__(): гілки 0, рядки 6
+    sales_start(): гілки 0, рядки 2
+    starts_at(): гілки 0, рядки 2
+    category(): гілки 0, рядки 2
+    seats(): гілки 4, рядки 8
+    build(): гілки 2, рядки 5
+
+sales/config/container.py
+
+sales/config/composition.py
+  клас SalesConfig: гілки разом 0, вихідні залежності 1 – Protocol
+  utc_now(): гілки 0, рядки 1
+  клас Container: гілки разом 0, вихідні залежності 16 – EventPublisher, GetHallLayout, HttpPaymentGateway, InMemoryEventRepository, InMemoryOrderRepository, InMemoryOutbox, InMemoryReservationRepository, OutboxRelay, PayOrder, PaymentGateway, PublishPendingEvents, RedisStreamPublisher, ReserveSeats, httpx, redis, seed_demo_event
+    __init__(): гілки 0, рядки 11
+    create_payment_gateway(): гілки 0, рядки 3
+    create_event_publisher(): гілки 0, рядки 2

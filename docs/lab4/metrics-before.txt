@@ -1,0 +1,30 @@
+
+sales/domain/order.py
+  клас OrderStatus: гілки разом 0, вихідні залежності 1 – Enum
+  клас OrderLine: гілки разом 0, вихідні залежності 3 – Money, SeatPosition, dataclass
+  клас Order: гілки разом 8, вихідні залежності 10 – Event, InvalidOrderError, Money, OrderAlreadyPaidError, Reservation, ReservationExpiredError, UUID, dataclass, datetime, uuid4
+    __post_init__(): гілки 1, рядки 2
+    for_reservation(): гілки 1, рядки 6
+    total(): гілки 0, рядки 2
+    start_payment(): гілки 2, рядки 6
+    start_or_resume_payment(): гілки 1, рядки 3
+    cancel_payment(): гілки 1, рядки 3
+    confirm_payment(): гілки 1, рядки 4
+    _ensure_not_paid(): гілки 1, рядки 2
+
+tickets/infrastructure/order_paid_consumer.py
+  to_command(): гілки 2, рядки 4
+  клас OrderPaidConsumer: гілки разом 9, вихідні залежності 4 – IssueTickets, json, redis, time
+    __init__(): гілки 0, рядки 4
+    ensure_group(): гілки 2, рядки 5
+    process_batch(): гілки 3, рядки 9
+    _handle(): гілки 1, рядки 8
+    run_forever(): гілки 3, рядки 9
+
+sales/infrastructure/demo_data.py
+  seed_demo_event(): гілки 3, рядки 16
+
+sales/config/container.py
+  utc_now(): гілки 0, рядки 1
+  клас Container: гілки разом 0, вихідні залежності 15 – GetHallLayout, HttpPaymentGateway, InMemoryEventRepository, InMemoryOrderRepository, InMemoryOutbox, InMemoryReservationRepository, OutboxRelay, PayOrder, PublishPendingEvents, RedisStreamPublisher, ReserveSeats, httpx, redis, seed_demo_event, settings
+    __init__(): гілки 0, рядки 15

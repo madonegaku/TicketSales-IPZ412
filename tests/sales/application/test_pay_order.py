@@ -1,4 +1,4 @@
-"""Тести сценарію PayOrder: оплата, продаж місць, видача квитків (С-04, С-05)."""
+"""Тести сценарію PayOrder: оплата й продаж місць (С-04, С-05). Квитки видає сервіс tickets."""
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -20,7 +20,6 @@ from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
-    InMemoryTicketRepository,
 )
 from sales.infrastructure.payment import StubPaymentGateway
 
@@ -45,11 +44,6 @@ def orders():
 
 
 @pytest.fixture
-def tickets():
-    return InMemoryTicketRepository()
-
-
-@pytest.fixture
 def gateway():
     return StubPaymentGateway()
 
@@ -61,25 +55,23 @@ def order_id(events, orders):
     return reserve_seats.execute(command).order_id
 
 
-def make_pay_order(events, orders, tickets, gateway, minutes_later=1):
-    return PayOrder(
-        events, orders, tickets, gateway, lambda: NOW + timedelta(minutes=minutes_later)
-    )
+def make_pay_order(events, orders, gateway, minutes_later=1):
+    return PayOrder(events, orders, gateway, lambda: NOW + timedelta(minutes=minutes_later))
 
 
-def test_paid_order_sells_seats_and_issues_tickets(events, orders, tickets, gateway, order_id):
-    pay_order = make_pay_order(events, orders, tickets, gateway)
+def test_paid_order_sells_seats_and_is_charged(events, orders, gateway, order_id):
+    pay_order = make_pay_order(events, orders, gateway)
 
     result = pay_order.execute(PayOrderCommand(order_id))
 
-    assert len(result.ticket_codes) == 2
-    assert {tickets.get_by_code(code).position for code in result.ticket_codes} == {A1, A2}
+    assert result.order_id == order_id
+    assert orders.get(order_id).status is OrderStatus.PAID
     assert events.get(EVENT_ID).seats[A1].status is SeatStatus.SOLD
     assert gateway.charges == [(order_id, Money(Decimal("1200")))]
 
 
-def test_order_is_charged_only_once(events, orders, tickets, gateway, order_id):
-    pay_order = make_pay_order(events, orders, tickets, gateway)
+def test_order_is_charged_only_once(events, orders, gateway, order_id):
+    pay_order = make_pay_order(events, orders, gateway)
     pay_order.execute(PayOrderCommand(order_id))
 
     with pytest.raises(OrderAlreadyPaidError):
@@ -88,8 +80,8 @@ def test_order_is_charged_only_once(events, orders, tickets, gateway, order_id):
     assert len(gateway.charges) == 1
 
 
-def test_declined_payment_leaves_storage_unchanged(events, orders, tickets, order_id):
-    pay_order = make_pay_order(events, orders, tickets, StubPaymentGateway(decline=True))
+def test_declined_payment_leaves_storage_unchanged(events, orders, order_id):
+    pay_order = make_pay_order(events, orders, StubPaymentGateway(decline=True))
 
     with pytest.raises(PaymentDeclinedError):
         pay_order.execute(PayOrderCommand(order_id))
@@ -98,8 +90,8 @@ def test_declined_payment_leaves_storage_unchanged(events, orders, tickets, orde
     assert events.get(EVENT_ID).seats[A1].status is SeatStatus.RESERVED
 
 
-def test_expired_reservation_is_not_charged(events, orders, tickets, gateway, order_id):
-    pay_order = make_pay_order(events, orders, tickets, gateway, minutes_later=16)
+def test_expired_reservation_is_not_charged(events, orders, gateway, order_id):
+    pay_order = make_pay_order(events, orders, gateway, minutes_later=16)
 
     with pytest.raises(ReservationExpiredError):
         pay_order.execute(PayOrderCommand(order_id))

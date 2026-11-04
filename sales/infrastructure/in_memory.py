@@ -15,10 +15,8 @@ from sales.domain.repositories import (
     EventRepository,
     OrderRepository,
     ReservationRepository,
-    TicketRepository,
 )
 from sales.domain.reservation import Reservation
-from sales.domain.ticket import Ticket
 
 
 class InMemoryEventRepository(EventRepository):
@@ -68,18 +66,3 @@ class InMemoryOrderRepository(OrderRepository):
 
     def save(self, order: Order) -> None:
         self._orders[order.id] = deepcopy(order)
-
-
-class InMemoryTicketRepository(TicketRepository):
-    """Квитки у словнику за кодом із QR."""
-
-    def __init__(self) -> None:
-        self._tickets: dict[str, Ticket] = {}
-
-    def get_by_code(self, code: str) -> Ticket:
-        if code not in self._tickets:
-            raise NotFoundError("Квиток не знайдено.")
-        return deepcopy(self._tickets[code])
-
-    def save(self, ticket: Ticket) -> None:
-        self._tickets[ticket.code] = deepcopy(ticket)

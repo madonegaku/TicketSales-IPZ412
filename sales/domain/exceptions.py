@@ -57,18 +57,6 @@ class OrderAlreadyPaidError(DomainError):
     """Замовлення вже оплачене – повторна оплата неможлива (С-05)."""
 
 
-class OrderNotPaidError(DomainError):
-    """Квитки можна видати лише за оплаченим замовленням."""
-
-
-class TicketAlreadyUsedError(DomainError):
-    """Квиток уже використано – повторний вхід заборонено (С-07)."""
-
-
-class InvalidTicketError(DomainError):
-    """Квиток недійсний: повернений, виданий на інший захід або не підлягає поверненню."""
-
-
 class NotFoundError(DomainError):
     """Об'єкт не знайдено в репозиторії."""
 

@@ -1,37 +1,25 @@
-"""Тести агрегату Ticket: видача, валідація (С-07) та повернення."""
+"""Тести агрегату Ticket: видача за оплаченим замовленням, валідація (С-07) та повернення."""
 
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
-from sales.domain.exceptions import (
+from tickets.domain.exceptions import (
+    InvalidPaidOrderError,
     InvalidTicketError,
-    OrderNotPaidError,
     TicketAlreadyUsedError,
 )
-from sales.domain.order import Order, OrderLine
-from sales.domain.ticket import Ticket, TicketStatus
-from sales.domain.value_objects import Money, SeatPosition
+from tickets.domain.paid_order import PaidOrder
+from tickets.domain.ticket import Ticket, TicketStatus
+from tickets.domain.value_objects import SeatPosition
 
-NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 EVENT_ID = uuid4()
-PRICE = Money(Decimal("600"))
 A1 = SeatPosition("Партер", 1, 1)
 A2 = SeatPosition("Партер", 1, 2)
 
 
-def make_order():
-    lines = (OrderLine(A1, PRICE), OrderLine(A2, PRICE))
-    return Order(uuid4(), uuid4(), EVENT_ID, lines, NOW + timedelta(minutes=15))
-
-
 def make_paid_order():
-    order = make_order()
-    order.start_payment(NOW)
-    order.confirm_payment()
-    return order
+    return PaidOrder(uuid4(), EVENT_ID, (A1, A2))
 
 
 def make_ticket():
@@ -45,9 +33,10 @@ def test_one_ticket_with_unique_code_is_issued_per_seat():
     assert len({ticket.code for ticket in tickets}) == 2
 
 
-def test_tickets_are_not_issued_for_unpaid_order():
-    with pytest.raises(OrderNotPaidError):
-        Ticket.issue_for(make_order())
+@pytest.mark.parametrize("positions", [(), (A1, A1)])
+def test_paid_order_without_seats_or_with_repeated_seat_is_rejected(positions):
+    with pytest.raises(InvalidPaidOrderError):
+        PaidOrder(uuid4(), EVENT_ID, positions)
 
 
 def test_valid_ticket_becomes_used_after_validation():

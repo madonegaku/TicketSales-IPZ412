@@ -1,5 +1,5 @@
-"""Маршрути URL. Тут view отримують сценарії з контейнера – це частина точки складання."""
-
+"""Маршрути URL сервісу sales. View отримують сценарії з контейнера – це частина точки складання."""
+    
 from functools import partial
 
 from django.urls import path
@@ -24,14 +24,5 @@ urlpatterns = [
         "orders/<uuid:order_id>/pay/",
         partial(views.pay, pay_order=container.pay_order),
         name="pay",
-    ),
-    path(
-        "validate/",
-        partial(
-            views.validate,
-            validate_ticket=container.validate_ticket,
-            default_event_id=DEMO_EVENT_ID,
-        ),
-        name="validate",
     ),
 ]

@@ -11,7 +11,6 @@ from uuid import UUID
 from sales.domain.event import Event
 from sales.domain.order import Order
 from sales.domain.reservation import Reservation
-from sales.domain.ticket import Ticket
 
 
 class EventRepository(ABC):
@@ -48,15 +47,3 @@ class OrderRepository(ABC):
     @abstractmethod
     def save(self, order: Order) -> None:
         """Додає нове або оновлює наявне замовлення."""
-
-
-class TicketRepository(ABC):
-    """Колекція квитків."""
-
-    @abstractmethod
-    def get_by_code(self, code: str) -> Ticket:
-        """Повертає квиток за кодом із QR; якщо його немає – кидає NotFoundError."""
-
-    @abstractmethod
-    def save(self, ticket: Ticket) -> None:
-        """Додає новий або оновлює наявний квиток."""

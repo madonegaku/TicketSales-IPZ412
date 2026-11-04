@@ -13,8 +13,7 @@ from django.views.decorators.http import require_POST
 
 from sales.application.get_hall_layout import GetHallLayout
 from sales.application.pay_order import PayOrder, PayOrderCommand
-from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
-from sales.application.validate_ticket import ValidateTicket, ValidateTicketCommand
+from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand   
 from sales.domain.exceptions import DomainError, NotFoundError
 
 # У ЛР 2 автентифікації ще немає, тому всі запити – від одного демонстраційного покупця.
@@ -63,25 +62,5 @@ def pay(request: HttpRequest, order_id: UUID, *, pay_order: PayOrder) -> HttpRes
         result = pay_order.execute(PayOrderCommand(order_id))
     except DomainError as exc:
         return render(request, "presentation/payment.html", {"error": str(exc)})
-    return render(request, "presentation/payment.html", {"ticket_codes": result.ticket_codes})
+    return render(request, "presentation/payment.html", {"order_id": result.order_id})
 
-
-def validate(
-    request: HttpRequest,
-    *,
-    validate_ticket: ValidateTicket,
-    default_event_id: UUID,
-) -> HttpResponse:
-    """Сторінка контролера: перевіряє код квитка на вході до заходу."""
-    context = {"event_id": request.POST.get("event_id", default_event_id)}
-    if request.method == "POST":
-        try:
-            command = ValidateTicketCommand(
-                request.POST["code"].strip(), UUID(request.POST["event_id"])
-            )
-            context["seat"] = validate_ticket.execute(command)
-        except (KeyError, ValueError):
-            context["error"] = "Некоректні дані форми."
-        except DomainError as exc:
-            context["error"] = str(exc)
-    return render(request, "presentation/validate.html", context)

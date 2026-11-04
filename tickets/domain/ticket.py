@@ -5,13 +5,9 @@ from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sales.domain.exceptions import (
-    InvalidTicketError,
-    OrderNotPaidError,
-    TicketAlreadyUsedError,
-)
-from sales.domain.order import Order, OrderStatus
-from sales.domain.value_objects import SeatPosition
+from tickets.domain.exceptions import InvalidTicketError, TicketAlreadyUsedError
+from tickets.domain.paid_order import PaidOrder
+from tickets.domain.value_objects import SeatPosition
 
 
 class TicketStatus(Enum):
@@ -24,11 +20,11 @@ class TicketStatus(Enum):
 
 @dataclass(eq=False)
 class Ticket:
-    """Квиток – окремий агрегат; код для QR унікальний і непередбачуваний.
+    """Квиток – агрегат сервісу tickets; код для QR унікальний і непередбачуваний.
 
-    Інваріанти: видається лише за оплаченим замовленням; валідується лише дійсний
-    квиток свого заходу, після валідації стає використаним і повторно не приймається
-    (С-07); повернути можна лише дійсний квиток.
+    Інваріанти: видається лише за оплаченим замовленням (PaidOrder); валідується лише
+    дійсний квиток свого заходу, після валідації стає використаним і повторно не
+    приймається (С-07); повернути можна лише дійсний квиток.
     """
 
     id: UUID
@@ -39,13 +35,11 @@ class Ticket:
     status: TicketStatus = TicketStatus.VALID
 
     @classmethod
-    def issue_for(cls, order: Order) -> list["Ticket"]:
+    def issue_for(cls, order: PaidOrder) -> list["Ticket"]:
         """Видає по квитку на кожне місце оплаченого замовлення."""
-        if order.status is not OrderStatus.PAID:
-            raise OrderNotPaidError("Квитки видаються лише за оплаченим замовленням.")
         return [
-            cls(uuid4(), order.id, order.event_id, line.position, secrets.token_urlsafe(16))
-            for line in order.lines
+            cls(uuid4(), order.order_id, order.event_id, position, secrets.token_urlsafe(16))
+            for position in order.positions
         ]
 
     def validate(self, event_id: UUID) -> None:

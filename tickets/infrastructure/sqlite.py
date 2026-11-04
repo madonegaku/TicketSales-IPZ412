@@ -9,7 +9,7 @@ from contextlib import closing
 from pathlib import Path
 from uuid import UUID
 
-from tickets.domain.exceptions import NotFoundError
+from tickets.domain.exceptions import NotFoundError, TicketsAlreadyIssuedError
 from tickets.domain.repositories import TicketRepository
 from tickets.domain.ticket import Ticket, TicketStatus
 from tickets.domain.value_objects import SeatPosition
@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS tickets (
     status TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS tickets_by_order ON tickets (order_id);
+-- ЛР 5: один квиток на місце в замовленні. Перевірка exists_for_order і вставка – дві операції,
+-- тож дві одночасні обробки тієї самої події могли б обидві пройти перевірку; індекс робить
+-- повторну вставку неможливою на рівні бази. Додавання індексу зворотно сумісне.
+CREATE UNIQUE INDEX IF NOT EXISTS tickets_one_per_seat_in_order
+    ON tickets (order_id, sector, seat_row, seat_number);
 """
 
 COLUMNS = "code, ticket_id, order_id, event_id, sector, seat_row, seat_number, status"
@@ -76,8 +81,13 @@ class SqliteTicketRepository(TicketRepository):
             connection.execute(UPSERT, to_row(ticket))
 
     def add_all(self, tickets: list[Ticket]) -> None:
-        with closing(sqlite3.connect(self._path)) as connection, connection:
-            connection.executemany(INSERT, [to_row(ticket) for ticket in tickets])
+        try:
+            with closing(sqlite3.connect(self._path)) as connection, connection:
+                connection.executemany(INSERT, [to_row(ticket) for ticket in tickets])
+        except sqlite3.IntegrityError as exc:
+            if "tickets.order_id" not in str(exc):
+                raise
+            raise TicketsAlreadyIssuedError("Квитки за цим замовленням уже видано.") from exc
 
     def exists_for_order(self, order_id: UUID) -> bool:
         return bool(self._select("SELECT 1 FROM tickets WHERE order_id = ? LIMIT 1", (str(order_id),)))

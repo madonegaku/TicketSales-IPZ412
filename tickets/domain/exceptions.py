@@ -23,3 +23,7 @@ class InvalidTicketError(DomainError):
 
 class NotFoundError(DomainError):
     """Об'єкт не знайдено в репозиторії."""
+
+
+class TicketsAlreadyIssuedError(DomainError):
+    """Квитки за цим замовленням уже видано – повторна подія OrderPaid нічого не змінює."""

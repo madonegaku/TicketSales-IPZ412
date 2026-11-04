@@ -22,7 +22,11 @@ class TicketRepository(ABC):
 
     @abstractmethod
     def add_all(self, tickets: list[Ticket]) -> None:
-        """Атомарно додає всі квитки одного замовлення: або всі, або жоден."""
+        """Атомарно додає всі квитки одного замовлення: або всі, або жоден.
+
+        Якщо квиток на будь-яке з цих місць цього замовлення вже є – TicketsAlreadyIssuedError
+        і нічого не додається (захист від двох одночасних обробок тієї самої події).
+        """
 
     @abstractmethod
     def exists_for_order(self, order_id: UUID) -> bool:

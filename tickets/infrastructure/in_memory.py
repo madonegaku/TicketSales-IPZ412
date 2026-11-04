@@ -6,7 +6,7 @@
 from copy import deepcopy
 from uuid import UUID
 
-from tickets.domain.exceptions import NotFoundError
+from tickets.domain.exceptions import NotFoundError, TicketsAlreadyIssuedError
 from tickets.domain.repositories import TicketRepository
 from tickets.domain.ticket import Ticket
 
@@ -26,6 +26,9 @@ class InMemoryTicketRepository(TicketRepository):
         self._tickets[ticket.code] = deepcopy(ticket)
 
     def add_all(self, tickets: list[Ticket]) -> None:
+        issued = {(t.order_id, t.position) for t in self._tickets.values()}
+        if any((ticket.order_id, ticket.position) in issued for ticket in tickets):
+            raise TicketsAlreadyIssuedError("Квитки за цим замовленням уже видано.")
         for ticket in tickets:
             self._tickets[ticket.code] = deepcopy(ticket)
 

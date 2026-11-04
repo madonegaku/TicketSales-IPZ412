@@ -6,11 +6,11 @@
 
 ## Команда (НУ «ОЮА», група ІПЗ412)
 
-| Учасник | Роль у ЛР 1 | Роль у ЛР 2 |
-| --- | --- | --- |
-| **Пакін Денис Сергійович** | Архітектор | Аналітик домену |
-| **Шавейко Олександр Леонідович** | Аналітик домену | Інженер з якості |
-| **Пащенко Олександр Анатолійович** | Інженер з якості | Архітектор |
+| Учасник | Роль у ЛР 1 | Роль у ЛР 2 | Роль у ЛР 3 |
+| --- | --- | --- | --- |
+| **Пакін Денис Сергійович** | Архітектор | Аналітик домену | Інженер з якості |
+| **Шавейко Олександр Леонідович** | Аналітик домену | Інженер з якості | Архітектор |
+| **Пащенко Олександр Анатолійович** | Інженер з якості | Архітектор | Аналітик домену |
 
 Викладач: Ніколаєнко С.В.
 
@@ -18,8 +18,8 @@
 
 | | |
 | --- | --- |
-| **Архітектурний стиль** | Модульний моноліт з фоновими обробниками ([ADR-001](docs/adr/0001-architecture-style.md)) |
-| **Технологічний стек** | Python 3.12, Django 5, PostgreSQL 16, Celery 5, Redis 7, Docker Compose ([ADR-002](docs/adr/0002-technology-stack.md)) |
+| **Архітектурний стиль** | Три сервіси за доменними контекстами (sales, payments, tickets), шлюз і брокер подій ([ADR-004](docs/adr/0004-service-boundaries-and-interaction.md), замінює [ADR-001](docs/adr/0001-architecture-style.md)) |
+| **Технологічний стек** | Python 3.12, Django 5, Redis 7 (Streams), nginx, Docker Compose; PostgreSQL 16 – у ЛР 5 ([ADR-002](docs/adr/0002-technology-stack.md)) |
 | **Найкритичніший атрибут якості** | Надійність: жодного подвійного продажу місця і жодного втраченого оплаченого замовлення |
 | **Зовнішні інтеграції** | LiqPay, Email-сервіс, Google reCAPTCHA, ПРРО Checkbox |
 
@@ -41,39 +41,67 @@
 
 ### Записи архітектурних рішень (ADR)
 
-- [ADR-001: Архітектурний стиль – модульний моноліт з фоновими обробниками](docs/adr/0001-architecture-style.md)
+- [ADR-001: Архітектурний стиль – модульний моноліт з фоновими обробниками](docs/adr/0001-architecture-style.md) (замінено ADR-004)
 - [ADR-002: Технологічний стек – Python, Django, PostgreSQL, Celery, Redis](docs/adr/0002-technology-stack.md)
+- [ADR-003: Доменна модель відокремлена від Django ORM](docs/adr/0003-domain-independent-of-orm.md)
+- [ADR-004: Межі сервісів за доменними контекстами та способи їх взаємодії](docs/adr/0004-service-boundaries-and-interaction.md)
 
 Записи зберігаються в каталозі [`docs/adr/`](docs/adr/). Прийняті записи не редагуються заднім числом: перегляд рішення оформлюється новим записом зі статусом «замінює ADR-00N» (правила – у [docs/adr/README.md](docs/adr/README.md)).
 
 ## Лабораторна робота № 2: Реалізація багатошарового ядра системи
 
-### Шари ядра та відповідність каталогів
+Стан коду ЛР 2 зафіксовано тегом `lab-2`. У ЛР 3 пакет `ticketing/` став сервісом `sales/`, а квитки й контроль на вході винесено в сервіс `tickets/`; багатошарова структура збережена в кожному сервісі.
 
-| Шар | Каталог | Відповідальність | Може залежати від |
-| --- | --- | --- | --- |
-| Presentation (подання) | `ticketing/presentation/` | Django views, форми, шаблони; перетворення запиту на DTO і виклик сценарію | application |
-| Application (застосунок) | `ticketing/application/` | Сценарії використання, вхідні/вихідні DTO, транзакційні межі | domain |
-| Domain (домен) | `ticketing/domain/` | Сутності, об'єкти-значення, доменні правила, інтерфейси репозиторіїв | лише стандартна бібліотека Python |
-| Infrastructure (інфраструктура) | `ticketing/infrastructure/` | Реалізації репозиторіїв (у ЛР 2 – у пам'яті), заглушка `PaymentGateway` | domain |
-| Точка складання залежностей | `config/container.py` | Створення реалізацій і передавання їх у сценарії (DI) | усі шари |
-
-Напрямок залежностей перевіряється автоматично: `lint-imports` та тест у `tests/architecture/`.
-
-### Сценарії використання
-
-| Сценарій | Що робить | Сценарії якості |
+| Шар | Відповідальність | Може залежати від |
 | --- | --- | --- |
-| `ReserveSeats` | Резервує місця «все або нічого» й створює замовлення із зафіксованими цінами | С-03, С-06 |
-| `PayOrder` | Списує кошти лише після всіх перевірок, продає місця, видає квитки | С-04, С-05 |
-| `ValidateTicket` | Пропускає за дійсним квитком свого заходу, повторний QR відхиляє | С-07 |
-| `GetHallLayout` | Запит лише на читання: схема залу зі статусами та цінами | С-01 |
+| Presentation (подання) | Django views, шаблони; перетворення запиту на DTO і виклик сценарію | application |
+| Application (застосунок) | Сценарії використання, вхідні/вихідні DTO, транзакційні межі | domain |
+| Domain (домен) | Сутності, об'єкти-значення, доменні правила, інтерфейси репозиторіїв | лише стандартна бібліотека Python |
+| Infrastructure (інфраструктура) | Реалізації інтерфейсів домену | domain |
+| Точка складання (`config/container.py` у кожному сервісі) | Створення реалізацій і передавання їх у сценарії (DI) | усі шари свого сервісу |
 
-Рішення про відокремлення доменної моделі від Django ORM – [ADR-003](docs/adr/0003-domain-independent-of-orm.md).
+Рішення про відокремлення доменної моделі від Django ORM – [ADR-003](docs/adr/0003-domain-independent-of-orm.md). Звіт (DOCX): [docs/reports/lab2-report.docx](docs/reports/lab2-report.docx).
 
-Звіт (DOCX): [docs/reports/lab2-report.docx](docs/reports/lab2-report.docx)
+## Лабораторна робота № 3: Декомпозиція системи на сервіси та проєктування контрактів взаємодії
+
+### Сервіси та їхні дані
+
+| Сервіс | Доменний контекст | Власні дані | Каталог |
+| --- | --- | --- | --- |
+| sales | Продаж: схема залу, резервування, замовлення | у пам'яті процесу + вихідна черга подій (PostgreSQL – у ЛР 5) | [`sales/`](sales/) |
+| payments | Оплати: списання коштів, ідемпотентність за `order_id` | SQLite, том `payments-data` | [`payments/`](payments/) |
+| tickets | Доступ на захід: видача квитків, контроль на вході | SQLite, том `tickets-data` | [`tickets/`](tickets/) |
+| gateway | Шлюз nginx – єдина точка входу | – | [`gateway/`](gateway/) |
+| redis | Брокер подій (Redis Streams) | потік `sales.order-paid.v1` | – |
+
+Обґрунтування меж за індикаторами, перевірка змінами вимог і власники сутностей – [docs/lab3/service-boundaries.md](docs/lab3/service-boundaries.md). Рішення – [ADR-004](docs/adr/0004-service-boundaries-and-interaction.md).
+
+Звіт (DOCX): [docs/reports/lab3-report.docx](docs/reports/lab3-report.docx)
+
+### Взаємодія
+
+| Вид | Хто → кому | Контракт | Захист |
+| --- | --- | --- | --- |
+| Синхронна | sales → payments, `POST /v1/payments` | [contracts/payments.openapi.yaml](contracts/payments.openapi.yaml) | тайм-аут 2 с, стан «оплата в обробці», ідемпотентність за `order_id` |
+| Асинхронна | sales → tickets, подія `OrderPaid` v1 | [contracts/order-paid.asyncapi.yaml](contracts/order-paid.asyncapi.yaml) | вихідна черга, група споживачів Redis Streams, підтвердження після обробки, ідемпотентний споживач |
+
+### Перевірка
+
+- 142 автоматичні тести: доменні правила кожного сервісу без бази даних, сценарії, сховища, HTTP-клієнт із тайм-аутом, відповідність API й повідомлень контрактам.
+- `lint-imports`: сервіси не імпортують один одного; шари всередині кожного сервісу; домен і застосунок без Django.
+- Експеримент із вимкненими payments, споживачем tickets, Redis і веб-процесом tickets – [docs/lab3/experiment.md](docs/lab3/experiment.md).
 
 ### Запуск і перевірка
+
+Уся система (потрібен Docker Desktop):
+
+```
+docker compose up --build
+```
+
+Після запуску відкрийте http://localhost:8080/ – вибір місць, оплата, «Мої квитки», контроль на вході (`/validate/`). Збій окремого сервісу імітується командами `docker compose stop <сервіс>` і `docker compose start <сервіс>`.
+
+Тести й перевірка залежностей:
 
 ```
 py -3.12 -m venv .venv
@@ -81,10 +109,7 @@ py -3.12 -m venv .venv
 pip install -r requirements.txt
 python -m pytest
 lint-imports
-python manage.py runserver
 ```
-
-Після запуску відкрийте http://127.0.0.1:8000/ – вибір місць, оплата та контроль на вході. Дані зберігаються в пам'яті й зникають після перезапуску сервера (сховище PostgreSQL – у ЛР 5).
 
 ## Структура репозиторію
 
@@ -93,25 +118,26 @@ python manage.py runserver
 ├── README.md
 ├── CHANGELOG.md
 ├── LICENSE
-├── requirements.txt          # залежності: Django, pytest, import-linter
-├── pyproject.toml            # контракти import-linter
-├── manage.py
-├── config/                   # налаштування Django, URL, container.py – точка складання залежностей
-├── ticketing/
-│   ├── domain/               # сутності, об'єкти-значення, правила, інтерфейси репозиторіїв
-│   ├── application/          # сценарії використання та DTO
-│   ├── infrastructure/       # репозиторії в пам'яті, заглушка платіжного шлюзу, демо-дані
-│   └── presentation/         # Django views і шаблони
+├── requirements.txt          # залежності сервісів і тестів
+├── pyproject.toml            # контракти import-linter, налаштування pytest
+├── compose.yaml              # шлюз, три сервіси, споживач подій, Redis
+├── Dockerfile                # образ одного сервісу (аргумент SERVICE)
+├── manage.py                 # локальний запуск sales
+├── gateway/nginx.conf        # маршрути шлюзу
+├── contracts/                # OpenAPI payments, AsyncAPI OrderPaid
+├── sales/                    # domain, application, infrastructure, presentation, config
+├── payments/                 # domain, application, infrastructure, presentation, config
+├── tickets/                  # domain, application, infrastructure, presentation, config (+ consumer.py)
 ├── tests/
-│   ├── unit/domain/          # тести доменних правил без бази даних
-│   ├── unit/application/     # тести сценаріїв використання
-│   ├── unit/infrastructure/  # тести репозиторіїв
-│   └── architecture/         # тест напрямку залежностей
+│   ├── sales/  payments/  tickets/   # тести кожного сервісу за шарами
+│   ├── contracts/            # коректність контрактів
+│   └── architecture/         # напрямок залежностей у доменах сервісів
 └── docs/
     ├── …                     # документи ЛР 1
-    ├── adr/                  # ADR-001 – ADR-003
+    ├── lab3/                 # межі сервісів, експеримент
+    ├── adr/                  # ADR-001 – ADR-004
     ├── assets/
-    └── reports/              # звіти ЛР 1, ЛР 2
+    └── reports/              # звіти
 ```
 
 ## Релізи
@@ -122,6 +148,7 @@ python manage.py runserver
 | --- | --- |
 | `lab-1` | Архітектурний контекст системи та обґрунтування архітектурного стилю |
 | `lab-2` | Реалізація багатошарового ядра системи |
+| `lab-3` | Декомпозиція системи на сервіси та проєктування контрактів взаємодії |
 
 ## Ліцензія
 

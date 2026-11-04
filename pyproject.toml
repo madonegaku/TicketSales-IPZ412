@@ -1,18 +1,28 @@
 [tool.importlinter]
-root_package = "ticketing"
+root_packages = ["sales", "tickets", "payments"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "Шари ядра: presentation | infrastructure → application → domain"
+name = "Сервіси не імпортують один одного"
+type = "independence"
+modules = ["sales", "tickets", "payments"]
+
+[[tool.importlinter.contracts]]
+name = "Шари кожного сервісу: presentation | infrastructure → application → domain"
 type = "layers"
+containers = ["sales", "tickets", "payments"]
 layers = [
-    "ticketing.presentation | ticketing.infrastructure",
-    "ticketing.application",
-    "ticketing.domain",
+    "presentation | infrastructure",
+    "application",
+    "domain",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Домен і застосунок не залежать від Django"
+name = "Домен і застосунок сервісів не залежать від Django"
 type = "forbidden"
-source_modules = ["ticketing.domain", "ticketing.application"]
+source_modules = ["sales.domain", "sales.application", "tickets.domain", "tickets.application", "payments.domain", "payments.application"]
 forbidden_modules = ["django"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]

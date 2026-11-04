@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: Сервіс оплат (payments)
+  version: 1.0.0
+  description: |
+    Контракт міжсервісних операцій сервісу payments (ЛР 3). Клієнт – сервіс sales;
+    зовнішні клієнти до payments напряму не звертаються.
+
+    Гарантії:
+    - Ідемпотентність: ключ операції – order_id. Повторний POST з тим самим order_id
+      і тією самою сумою після успішного платежу не списує кошти вдруге – повертається
+      збережений результат (200). Після відмови провайдера (declined) дозволено нову спробу.
+    - Час відповіді: p95 ≤ 500 мс у нормальних умовах; клієнт встановлює тайм-аут 2 с.
+    - Обмеження частоти: не більше 100 запитів/с від одного клієнта; при перевищенні –
+      429 і заголовок Retry-After.
+
+    Версіонування: версія в шляху (/v1). Додавання необов'язкових полів – сумісна зміна
+    в межах v1, клієнти ігнорують невідомі поля. Видалення чи перейменування полів і зміна
+    типів – лише у /v2; /v1 підтримується, доки на /v2 не перейдуть усі клієнти.
+servers:
+  - url: http://payments:8000/v1
+    description: Внутрішня мережа Docker Compose
+paths:
+  /payments:
+    post:
+      operationId: createPayment
+      summary: Списати кошти за замовлення
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+      responses:
+        "201":
+          description: Платіж створено – успішний або відхилений провайдером (поле status)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "200":
+          description: Повторний запит – платіж за цим order_id уже існує, повернено збережений результат
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          description: order_id уже використано з іншою сумою чи валютою
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Платіжний провайдер недоступний; кошти не списано, запит можна повторити
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /payments/{order_id}:
+    get:
+      operationId: getPayment
+      summary: Отримати платіж за замовленням (звірка)
+      description: |
+        Використовується sales для звірки замовлень у стані «оплата в обробці», якщо
+        відповідь на POST не надійшла (тайм-аут, збій sales). Операція безпечна й ідемпотентна.
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Платіж за замовленням
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          description: Платежу за цим замовленням немає – кошти не списувалися, POST можна безпечно повторити
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  schemas:
+    PaymentRequest:
+      type: object
+      required: [order_id, amount, currency]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+          description: Ідентифікатор замовлення в sales; водночас ключ ідемпотентності
+        amount:
+          type: string
+          pattern: "^[0-9]+(\\.[0-9]{1,2})?$"
+          description: Сума рядком (десяткове число, до 2 знаків після крапки) – щоб уникнути похибок float
+          examples: ["1200.00"]
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Код валюти ISO 4217
+          examples: ["UAH"]
+    Payment:
+      type: object
+      required: [payment_id, order_id, amount, currency, status, created_at]
+      properties:
+        payment_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: "^[0-9]+(\\.[0-9]{1,2})?$"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        status:
+          type: string
+          enum: [succeeded, declined]
+          description: succeeded – кошти списано; declined – провайдер відхилив оплату
+        decline_reason:
+          type: [string, "null"]
+          description: Причина відмови провайдера; null для успішного платежу
+        created_at:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_request, idempotency_conflict, rate_limited, provider_unavailable, payment_not_found]
+          description: Машиночитний код помилки
+        message:
+          type: string
+          description: Пояснення українською для журналів і налагодження
+  responses:
+    InvalidRequest:
+      description: Некоректні дані запиту (формат суми, валюти чи order_id)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Перевищено обмеження частоти запитів
+      headers:
+        Retry-After:
+          description: Через скільки секунд можна повторити запит
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

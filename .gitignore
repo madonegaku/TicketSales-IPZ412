@@ -225,3 +225,5 @@ CLAUDE.local.md
 materials/
 
 .import_linter_cache/
+
+*.sqlite3

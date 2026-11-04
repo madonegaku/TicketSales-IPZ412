@@ -1,0 +1,76 @@
+# Система продажу квитків (ЛР 3): шлюз, три сервіси з власними даними й брокер подій.
+# Запуск: docker compose up --build; адреса для браузера – http://localhost:8080/
+
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - sales
+      - tickets
+
+  sales:
+    build:
+      context: .
+      args:
+        SERVICE: sales
+    command: python -m django runserver 0.0.0.0:8000 --noreload --settings=sales.config.settings
+    environment:
+      PAYMENTS_URL: http://payments:8000
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - payments
+      - redis
+
+  payments:
+    build:
+      context: .
+      args:
+        SERVICE: payments
+    command: python -m django runserver 0.0.0.0:8000 --noreload --settings=payments.config.settings
+    environment:
+      PAYMENTS_DB_PATH: /data/payments.sqlite3
+    volumes:
+      - payments-data:/data
+
+  tickets:
+    build:
+      context: .
+      args:
+        SERVICE: tickets
+    command: python -m django runserver 0.0.0.0:8000 --noreload --settings=tickets.config.settings
+    environment:
+      TICKETS_DB_PATH: /data/tickets.sqlite3
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - tickets-data:/data
+    depends_on:
+      - redis
+
+  tickets-consumer:
+    build:
+      context: .
+      args:
+        SERVICE: tickets
+    command: python -m tickets.config.consumer
+    environment:
+      TICKETS_DB_PATH: /data/tickets.sqlite3
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - tickets-data:/data
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  payments-data:
+  tickets-data:
+  redis-data:

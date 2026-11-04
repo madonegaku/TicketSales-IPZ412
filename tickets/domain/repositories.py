@@ -4,6 +4,7 @@
 """
 
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 from tickets.domain.ticket import Ticket
 
@@ -17,4 +18,16 @@ class TicketRepository(ABC):
 
     @abstractmethod
     def save(self, ticket: Ticket) -> None:
-        """Додає новий або оновлює наявний квиток."""
+        """Додає квиток або оновлює стан наявного (валідація, повернення)."""
+
+    @abstractmethod
+    def add_all(self, tickets: list[Ticket]) -> None:
+        """Атомарно додає всі квитки одного замовлення: або всі, або жоден."""
+
+    @abstractmethod
+    def exists_for_order(self, order_id: UUID) -> bool:
+        """Чи видано вже квитки за замовленням – для ідемпотентної обробки OrderPaid."""
+
+    @abstractmethod
+    def list_by_order(self, order_id: UUID) -> list[Ticket]:
+        """Квитки замовлення в порядку видачі."""

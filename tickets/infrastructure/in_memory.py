@@ -4,6 +4,7 @@
 """
 
 from copy import deepcopy
+from uuid import UUID
 
 from tickets.domain.exceptions import NotFoundError
 from tickets.domain.repositories import TicketRepository
@@ -23,3 +24,13 @@ class InMemoryTicketRepository(TicketRepository):
 
     def save(self, ticket: Ticket) -> None:
         self._tickets[ticket.code] = deepcopy(ticket)
+
+    def add_all(self, tickets: list[Ticket]) -> None:
+        for ticket in tickets:
+            self._tickets[ticket.code] = deepcopy(ticket)
+
+    def exists_for_order(self, order_id: UUID) -> bool:
+        return any(ticket.order_id == order_id for ticket in self._tickets.values())
+
+    def list_by_order(self, order_id: UUID) -> list[Ticket]:
+        return [deepcopy(ticket) for ticket in self._tickets.values() if ticket.order_id == order_id]

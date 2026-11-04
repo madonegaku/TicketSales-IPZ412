@@ -22,3 +22,7 @@ name = "Домен і застосунок сервісів не залежат�
 type = "forbidden"
 source_modules = ["sales.domain", "sales.application", "tickets.domain", "tickets.application", "payments.domain", "payments.application"]
 forbidden_modules = ["django"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]

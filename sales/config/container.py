@@ -14,6 +14,8 @@ from sales.application.get_hall_layout import GetHallLayout
 from sales.application.pay_order import PayOrder
 from sales.application.publish_pending_events import PublishPendingEvents
 from sales.application.reserve_seats import ReserveSeats
+from sales.domain.event_publisher import EventPublisher
+from sales.domain.payment_gateway import PaymentGateway
 from sales.infrastructure.demo_data import seed_demo_event
 from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
@@ -42,13 +44,19 @@ class Container:
         self.get_hall_layout = GetHallLayout(events)
         self.reserve_seats = ReserveSeats(events, reservations, orders, utc_now)
         self.outbox = InMemoryOutbox()
-        payment_gateway = HttpPaymentGateway(
+        self.pay_order = PayOrder(events, orders, self.create_payment_gateway(), self.outbox, utc_now)
+        self.outbox_relay = OutboxRelay(PublishPendingEvents(self.outbox, self.create_event_publisher()))
+
+    def create_payment_gateway(self) -> PaymentGateway:
+        """Фабричний метод: платіжний шлюз – HTTP-клієнт сервісу payments із тайм-аутом."""
+        return HttpPaymentGateway(
             httpx.Client(base_url=settings.PAYMENTS_URL, timeout=settings.PAYMENTS_TIMEOUT_SECONDS)
         )
-        self.pay_order = PayOrder(events, orders, payment_gateway, self.outbox, utc_now)
+
+    def create_event_publisher(self) -> EventPublisher:
+        """Фабричний метод: публікація подій у Redis Streams."""
         redis_client = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=1, socket_timeout=1)
-        publisher = RedisStreamPublisher(redis_client)
-        self.outbox_relay = OutboxRelay(PublishPendingEvents(self.outbox, publisher))
+        return RedisStreamPublisher(redis_client)
 
 
 container = Container()

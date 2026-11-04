@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sales.domain.event import Event
-from sales.domain.exceptions import InvalidOrderError, OrderAlreadyPaidError
+from sales.domain.exceptions import InvalidOrderError
 from sales.domain.order_state import OrderStatus, state_of
 from sales.domain.reservation import Reservation
 from sales.domain.value_objects import Money, SeatPosition
@@ -26,6 +26,9 @@ class Order:
     Інваріанти: містить хоча б один рядок; сума – це сума цін рядків;
     оплату можна розпочати лише до кінця строку резервування (С-04);
     підтвердити оплату можна лише один раз (С-05).
+
+    Які операції оплати дозволені в поточному стані, вирішує об'єкт стану
+    (sales/domain/order_state.py, патерн State); Order лише зберігає status.
     """
 
     id: UUID
@@ -64,17 +67,8 @@ class Order:
 
     def cancel_payment(self) -> None:
         """Компенсація: банк відхилив оплату – замовлення знову очікує оплати до кінця резервування."""
-        if self.status is not OrderStatus.PAYMENT_PENDING:
-            raise InvalidOrderError("Скасувати можна лише розпочату й незавершену оплату.")
-        self.status = OrderStatus.AWAITING_PAYMENT
+        self.status = state_of(self.status).cancel_payment()
 
     def confirm_payment(self) -> None:
         """Підтверджує оплату один раз; час уже не перевіряється (С-04, С-05)."""
-        self._ensure_not_paid()
-        if self.status is not OrderStatus.PAYMENT_PENDING:
-            raise InvalidOrderError("Не можна підтвердити оплату, яку не розпочато.")
-        self.status = OrderStatus.PAID
-
-    def _ensure_not_paid(self) -> None:
-        if self.status is OrderStatus.PAID:
-            raise OrderAlreadyPaidError("Замовлення вже оплачене.")
+        self.status = state_of(self.status).confirm_payment()

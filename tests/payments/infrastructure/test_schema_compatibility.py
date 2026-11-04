@@ -7,9 +7,10 @@
   v1 – ЛР 3: пише й читає amount (текст).
   v2 – розширення: пише amount і amount_minor, читає amount.
   v3 – перенесення: пише amount і amount_minor, читає amount_minor.
+  v4 – скорочення: пише й читає лише amount_minor.
 
-Порядок розгортання: 0002 → усі екземпляри на v2 → 0003 → v3. Тому після 0003 поруч можуть
-працювати лише v2 і v3 (v1 уже немає).
+Порядок розгортання: 0002 → усі екземпляри на v2 → 0003 → v3 → v4 → 0004. Тому після 0003
+поруч можуть працювати v2 і v3, а згодом v3 і v4 (v1 уже немає).
 """
 
 import sqlite3
@@ -25,6 +26,7 @@ CONSTANT = "'UAH', 'succeeded', NULL, '2026-11-04T12:00:00+00:00'"
 V1_WRITE = f"INSERT INTO payments ({COLUMNS.format(amount='amount')}) VALUES (?, ?, ?, {CONSTANT})"
 V2_WRITE = f"INSERT INTO payments ({COLUMNS.format(amount='amount, amount_minor')}) VALUES (?, ?, ?, ?, {CONSTANT})"
 V3_WRITE = V2_WRITE
+V4_WRITE = f"INSERT INTO payments ({COLUMNS.format(amount='amount_minor')}) VALUES (?, ?, ?, {CONSTANT})"
 READ_AMOUNT = "SELECT amount FROM payments WHERE order_id = ?"
 READ_AMOUNT_MINOR = "SELECT amount_minor FROM payments WHERE order_id = ?"
 
@@ -117,3 +119,13 @@ def test_after_0003_v2_and_v3_read_each_others_rows(db):
 
     assert read_amount(db, "o3") == "1500.00", "v2 читає рядок, записаний v3"
     assert read_amount_minor(db, "o2") == 60000, "v3 читає рядок, записаний v2"
+
+
+def test_after_0003_v4_writes_without_old_column_and_v3_reads_it(db):
+    migrate(db, target=3)
+
+    db.execute(V4_WRITE, ("o4", "p-o4", 120000))
+    db.commit()
+
+    assert read_amount_minor(db, "o4") == 120000, "v3 читає рядок, записаний v4"
+    assert read_amount(db, "o4") is None

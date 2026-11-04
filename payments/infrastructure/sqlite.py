@@ -12,19 +12,18 @@ from payments.domain.repositories import PaymentRepository
 from payments.domain.value_objects import Money
 from payments.infrastructure.migrate import migrate
 
-# Етап «перенесення»: читання переведено на amount_minor; запис – ще в обидва стовпці, щоб
-# попередня версія, яка під час розгортання працює поруч і читає amount, бачила нові рядки.
+# Сума зберігається лише в копійках (amount_minor). Старий стовпець amount більше не пишеться:
+# після 0002 він допускає NULL, а версія, що його читала, уже не працює – його можна вилучити (0004).
 SELECT_BY_ORDER = """
 SELECT payment_id, order_id, amount_minor, currency, status, decline_reason, created_at
 FROM payments WHERE order_id = ?
 """
 
 UPSERT = """
-INSERT INTO payments (order_id, payment_id, amount, amount_minor, currency, status, decline_reason, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO payments (order_id, payment_id, amount_minor, currency, status, decline_reason, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(order_id) DO UPDATE SET
     payment_id = excluded.payment_id,
-    amount = excluded.amount,
     amount_minor = excluded.amount_minor,
     currency = excluded.currency,
     status = excluded.status,
@@ -73,7 +72,6 @@ class SqlitePaymentRepository(PaymentRepository):
         values = (
             str(payment.order_id),
             str(payment.id),
-            str(payment.amount.amount),
             to_minor(payment.amount),
             payment.amount.currency,
             payment.status.value,

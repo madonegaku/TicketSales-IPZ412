@@ -18,6 +18,9 @@ services:
       args:
         SERVICE: sales
     command: python -m django runserver 0.0.0.0:8000 --noreload --settings=sales.config.settings
+    # Лише localhost: JSON API для Meteor, запущеного на машині розробника (meteor run, ADR-006).
+    ports:
+      - "127.0.0.1:8100:8000"
     environment:
       PAYMENTS_URL: http://payments:8000
       REDIS_URL: redis://redis:6379/0
@@ -49,6 +52,9 @@ services:
       args:
         SERVICE: tickets
     command: python -m django runserver 0.0.0.0:8000 --noreload --settings=tickets.config.settings
+    # Лише localhost: JSON API для Meteor, запущеного на машині розробника (meteor run, ADR-006).
+    ports:
+      - "127.0.0.1:8200:8000"
     environment:
       TICKETS_DB_PATH: /data/tickets.sqlite3
       REDIS_URL: redis://redis:6379/0

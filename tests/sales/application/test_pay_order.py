@@ -21,6 +21,7 @@ from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
+    InMemoryOutbox,
 )
 from sales.infrastructure.payment import StubPaymentGateway
 
@@ -35,7 +36,7 @@ def events():
     repository = InMemoryEventRepository()
     categories = {"Партер": PriceCategory("Партер", Money(Decimal("600")))}
     seats = {A1: Seat(A1, "Партер"), A2: Seat(A2, "Партер")}
-    repository.save(Event(EVENT_ID, "Концерт", NOW - timedelta(days=1), categories, seats))
+    repository.save(Event(EVENT_ID, "Концерт", NOW - timedelta(days=1), categories, seats, NOW + timedelta(days=30)))
     return repository
 
 
@@ -56,8 +57,9 @@ def order_id(events, orders):
     return reserve_seats.execute(command).order_id
 
 
-def make_pay_order(events, orders, gateway, minutes_later=1):
-    return PayOrder(events, orders, gateway, lambda: NOW + timedelta(minutes=minutes_later))
+def make_pay_order(events, orders, gateway, minutes_later=1, outbox=None):
+    outbox = outbox if outbox is not None else InMemoryOutbox()
+    return PayOrder(events, orders, gateway, outbox, lambda: NOW + timedelta(minutes=minutes_later))
 
 
 def test_paid_order_sells_seats_and_is_charged(events, orders, gateway, order_id):
@@ -119,3 +121,23 @@ def test_payment_is_completed_on_retry_after_reservation_expires(events, orders,
     assert orders.get(order_id).status is OrderStatus.PAID
     assert events.get(EVENT_ID).seats[A1].status is SeatStatus.SOLD
     assert len(gateway.charges) == 1
+
+
+def test_paid_order_puts_order_paid_event_into_outbox(events, orders, gateway, order_id):
+    outbox = InMemoryOutbox()
+
+    make_pay_order(events, orders, gateway, outbox=outbox).execute(PayOrderCommand(order_id))
+
+    [event] = outbox.pending()
+    assert (event.order_id, event.event_id) == (order_id, EVENT_ID)
+    assert set(event.seats) == {A1, A2}
+
+
+@pytest.mark.parametrize("failing_gateway", [StubPaymentGateway(decline=True), StubPaymentGateway(unavailable=True)])
+def test_failed_payment_puts_nothing_into_outbox(events, orders, order_id, failing_gateway):
+    outbox = InMemoryOutbox()
+
+    with pytest.raises((PaymentDeclinedError, PaymentUnavailableError)):
+        make_pay_order(events, orders, failing_gateway, outbox=outbox).execute(PayOrderCommand(order_id))
+
+    assert outbox.pending() == []

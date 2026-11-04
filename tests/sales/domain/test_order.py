@@ -27,7 +27,7 @@ def make_event():
         "VIP": PriceCategory("VIP", Money(Decimal("1500"))),
     }
     seats = {A1: Seat(A1, "Партер"), VIP: Seat(VIP, "VIP")}
-    return Event(uuid4(), "Концерт", NOW - timedelta(days=1), categories, seats)
+    return Event(uuid4(), "Концерт", NOW - timedelta(days=1), categories, seats, NOW + timedelta(days=30))
 
 
 def make_order(event=None):

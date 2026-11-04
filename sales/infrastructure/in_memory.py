@@ -3,7 +3,7 @@
 Зберігають копії агрегатів, а не самі об'єкти: як і справжнє сховище, вони
 бачать зміни лише після save(). У ЛР 5 їх замінять реалізації на Django ORM.
 """
-
+import threading
 from copy import deepcopy
 from datetime import datetime
 from uuid import UUID
@@ -11,6 +11,8 @@ from uuid import UUID
 from sales.domain.event import Event
 from sales.domain.exceptions import NotFoundError
 from sales.domain.order import Order
+from sales.domain.order_paid import OrderPaid
+from sales.domain.outbox import Outbox
 from sales.domain.repositories import (
     EventRepository,
     OrderRepository,
@@ -66,3 +68,26 @@ class InMemoryOrderRepository(OrderRepository):
 
     def save(self, order: Order) -> None:
         self._orders[order.id] = deepcopy(order)
+
+
+class InMemoryOutbox(Outbox):
+    """Вихідна черга в пам'яті процесу sales; у ЛР 5 – таблиця в одній базі із замовленнями.
+
+    Доступ захищено блокуванням: події додає обробник запиту, а публікує фоновий потік.
+    """
+
+    def __init__(self) -> None:
+        self._events: dict[UUID, OrderPaid] = {}
+        self._lock = threading.Lock()
+
+    def add(self, event: OrderPaid) -> None:
+        with self._lock:
+            self._events[event.message_id] = event
+
+    def pending(self) -> list[OrderPaid]:
+        with self._lock:
+            return list(self._events.values())
+
+    def mark_published(self, message_id: UUID) -> None:
+        with self._lock:
+            self._events.pop(message_id, None)

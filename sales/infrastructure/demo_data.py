@@ -27,4 +27,5 @@ def seed_demo_event(events: EventRepository) -> None:
         seats[position] = Seat(position, "VIP")
 
     sales_start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    events.save(Event(DEMO_EVENT_ID, "Концерт симфонічного оркестру", sales_start, categories, seats))
+    starts_at = datetime(2026, 12, 20, 17, 0, tzinfo=timezone.utc)
+    events.save(Event(DEMO_EVENT_ID, "Концерт симфонічного оркестру", sales_start, categories, seats, starts_at))

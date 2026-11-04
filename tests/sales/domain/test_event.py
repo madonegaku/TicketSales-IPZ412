@@ -33,7 +33,7 @@ def make_event():
         A2: Seat(A2, "Партер"),
         VIP: Seat(VIP, "VIP"),
     }
-    return Event(uuid4(), "Концерт", SALES_START, categories, seats)
+    return Event(uuid4(), "Концерт", SALES_START, categories, seats, SALES_START + timedelta(days=30))
 
 
 def test_seats_are_reserved_after_sales_start():
@@ -95,7 +95,7 @@ def test_price_of_seat_is_its_category_price():
 
 def test_event_with_seat_in_unknown_category_cannot_be_created():
     with pytest.raises(UnknownPriceCategoryError):
-        Event(uuid4(), "Концерт", SALES_START, {}, {A1: Seat(A1, "Партер")})
+        Event(uuid4(), "Концерт", SALES_START, {}, {A1: Seat(A1, "Партер")}, SALES_START + timedelta(days=30))
 
 
 def test_reserved_seats_are_sold():

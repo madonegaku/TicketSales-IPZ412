@@ -27,7 +27,7 @@ def events():
     repository = InMemoryEventRepository()
     categories = {"Партер": PriceCategory("Партер", Money(Decimal("600")))}
     seats = {position: Seat(position, "Партер") for position in SEATS}
-    repository.save(Event(EVENT_ID, "Концерт", NOW - timedelta(days=1), categories, seats))
+    repository.save(Event(EVENT_ID, "Концерт", NOW - timedelta(days=1), categories, seats, NOW + timedelta(days=30)))
     return repository
 
 

@@ -5,3 +5,4 @@ openapi-spec-validator>=0.9
 PyYAML>=6.0
 jsonschema>=4.26
 httpx>=0.28
+redis>=5.0

@@ -21,7 +21,7 @@ A1 = SeatPosition("Партер", 1, 1)
 
 def make_event():
     categories = {"Партер": PriceCategory("Партер", Money(Decimal("600")))}
-    return Event(uuid4(), "Концерт", NOW, categories, {A1: Seat(A1, "Партер")})
+    return Event(uuid4(), "Концерт", NOW, categories, {A1: Seat(A1, "Партер")}, NOW + timedelta(days=30))
 
 
 def test_changes_are_not_stored_without_save():

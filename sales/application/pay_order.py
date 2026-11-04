@@ -1,11 +1,12 @@
-"""Сценарій «Оплата замовлення»: оплата й продаж місць. Квитки видає сервіс tickets."""
+"""Сценарій «Оплата замовлення»: оплата й продаж місць. «Про оплату повідомляє подією OrderPaid через вихідну чергу – квитки видає сервіс tickets.»"""
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 from sales.domain.exceptions import PaymentDeclinedError
-
+from sales.domain.order_paid import OrderPaid
+from sales.domain.outbox import Outbox
 from sales.domain.payment_gateway import PaymentGateway
 from sales.domain.repositories import EventRepository, OrderRepository
 
@@ -38,11 +39,13 @@ class PayOrder:
         events: EventRepository,
         orders: OrderRepository,
         payment_gateway: PaymentGateway,
+        outbox: Outbox,
         clock: Callable[[], datetime],
     ) -> None:
         self._events = events
         self._orders = orders
         self._payment_gateway = payment_gateway
+        self._outbox = outbox
         self._clock = clock
 
     def execute(self, command: PayOrderCommand) -> PayOrderResult:
@@ -63,5 +66,6 @@ class PayOrder:
         order.confirm_payment()
         self._orders.save(order)
         self._events.save(event)
+        self._outbox.add(OrderPaid.for_order(order, event, self._clock()))
 
         return PayOrderResult(order.id)

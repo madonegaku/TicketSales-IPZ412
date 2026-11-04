@@ -67,6 +67,7 @@ class PriceCategory:
 class Event:
     """Захід – корінь агрегату: єдина точка зміни стану своїх місць.
 
+    starts_at – час початку заходу; у ЛР 3 передається сервісу tickets у події OrderPaid.
     Інваріанти: кожне місце належить до однієї з цінових категорій заходу;
     одне місце не може бути зарезервоване чи продане двічі (С-03).
     """
@@ -76,6 +77,7 @@ class Event:
     sales_start: datetime
     categories: dict[str, PriceCategory]
     seats: dict[SeatPosition, Seat]
+    starts_at: datetime
 
     def __post_init__(self) -> None:
         for seat in self.seats.values():

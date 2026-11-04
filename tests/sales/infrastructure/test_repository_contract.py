@@ -150,6 +150,32 @@ def test_order_round_trip_keeps_lines_prices_and_status(storage):
     assert (loaded.reservation_id, loaded.event_id) == (reservation.id, event.id)
 
 
+def test_order_keeps_its_buyer_and_is_listed_for_that_buyer_only(storage):
+    event = make_event()
+    storage.events.save(event)
+    buyer = uuid4()
+    first = Reservation.create(event.id, buyer, [P1], NOW, 0)
+    second = Reservation.create(event.id, buyer, [P2], NOW + timedelta(minutes=1), 1)
+    other = Reservation.create(event.id, uuid4(), [VIP1], NOW, 0)
+    for reservation in (first, second, other):
+        storage.reservations.save(reservation)
+        storage.orders.save(Order.for_reservation(reservation, event))
+
+    mine = storage.orders.list_by_buyer(buyer)
+
+    assert [order.reservation_id for order in mine] == [second.id, first.id], "новіші першими"
+    assert {order.buyer_id for order in mine} == {buyer}
+
+
+def test_events_are_listed_by_start_time(storage):
+    later, earlier = make_event(), make_event()
+    earlier.starts_at = later.starts_at - timedelta(days=7)
+    storage.events.save(later)
+    storage.events.save(earlier)
+
+    assert [event.id for event in storage.events.list_all()] == [earlier.id, later.id]
+
+
 def test_postgres_transaction_is_rolled_back_on_error(storage):
     if storage.database is None:
         pytest.skip("транзакції є лише в PostgreSQL")

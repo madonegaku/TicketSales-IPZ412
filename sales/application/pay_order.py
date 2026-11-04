@@ -7,7 +7,7 @@ from uuid import UUID
 
 from sales.application.get_hall_layout import HallLayoutCache
 from sales.application.unit_of_work import UnitOfWork
-from sales.domain.exceptions import PaymentDeclinedError
+from sales.domain.exceptions import NotFoundError, PaymentDeclinedError
 from sales.domain.order_paid import OrderPaid
 from sales.domain.outbox import Outbox
 from sales.domain.payment_gateway import PaymentGateway
@@ -16,9 +16,14 @@ from sales.domain.repositories import EventRepository, OrderRepository
 
 @dataclass(frozen=True)
 class PayOrderCommand:
-    """Вхідні дані: замовлення, яке покупець оплачує."""
+    """Вхідні дані: замовлення, яке покупець оплачує.
+
+    buyer_id – хто оплачує; якщо задано, оплатити можна лише власне замовлення (API для web).
+    Сторінки Django ЛР 2–5 працюють від імені одного демонстраційного покупця й не передають його.
+    """
 
     order_id: UUID
+    buyer_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +69,8 @@ class PayOrder:
     def execute(self, command: PayOrderCommand) -> PayOrderResult:
         with self._unit_of_work.transaction():
             order = self._orders.get_for_update(command.order_id)
+            if command.buyer_id is not None and not order.belongs_to(command.buyer_id):
+                raise NotFoundError("Замовлення не знайдено.")
             event = self._events.get(order.event_id)
             order.start_or_resume_payment(self._clock())
             event.sell_seats([line.position for line in order.lines])

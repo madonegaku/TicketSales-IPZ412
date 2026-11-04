@@ -10,18 +10,7 @@ from uuid import UUID
 from payments.domain.payment import Payment, PaymentStatus
 from payments.domain.repositories import PaymentRepository
 from payments.domain.value_objects import Money
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS payments (
-    order_id TEXT PRIMARY KEY,
-    payment_id TEXT NOT NULL UNIQUE,
-    amount TEXT NOT NULL,
-    currency TEXT NOT NULL,
-    status TEXT NOT NULL,
-    decline_reason TEXT,
-    created_at TEXT NOT NULL
-)
-"""
+from payments.infrastructure.migrate import migrate
 
 SELECT_BY_ORDER = """
 SELECT payment_id, order_id, amount, currency, status, decline_reason, created_at
@@ -49,8 +38,8 @@ class SqlitePaymentRepository(PaymentRepository):
 
     def __init__(self, path: str | Path) -> None:
         self._path = str(path)
-        with closing(sqlite3.connect(self._path)) as connection, connection:
-            connection.execute(SCHEMA)
+        with closing(sqlite3.connect(self._path)) as connection:
+            migrate(connection)
 
     def find_by_order(self, order_id: UUID) -> Payment | None:
         with closing(sqlite3.connect(self._path)) as connection:

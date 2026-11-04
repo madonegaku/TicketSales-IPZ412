@@ -124,6 +124,8 @@ lint-imports
 
 Показники вимірює скрипт `tools/measure.py`; результати – `docs/lab4/metrics-before.txt` і `metrics-after.txt`.
 
+Звіт (DOCX): [docs/reports/lab4-report.docx](docs/reports/lab4-report.docx)
+
 ## Структура репозиторію
 
 ```

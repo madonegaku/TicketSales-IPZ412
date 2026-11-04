@@ -17,17 +17,24 @@ SELECT payment_id, order_id, amount, currency, status, decline_reason, created_a
 FROM payments WHERE order_id = ?
 """
 
+# Етап «розширення»: сума пишеться в обидва стовпці (паралельний запис), читається ще стара.
 UPSERT = """
-INSERT INTO payments (order_id, payment_id, amount, currency, status, decline_reason, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO payments (order_id, payment_id, amount, amount_minor, currency, status, decline_reason, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(order_id) DO UPDATE SET
     payment_id = excluded.payment_id,
     amount = excluded.amount,
+    amount_minor = excluded.amount_minor,
     currency = excluded.currency,
     status = excluded.status,
     decline_reason = excluded.decline_reason,
     created_at = excluded.created_at
 """
+
+
+def to_minor(money: Money) -> int:
+    """Сума в копійках: Money гарантує не більше двох знаків після коми, тож множення точне."""
+    return int(money.amount * 100)
 
 
 class SqlitePaymentRepository(PaymentRepository):
@@ -61,6 +68,7 @@ class SqlitePaymentRepository(PaymentRepository):
             str(payment.order_id),
             str(payment.id),
             str(payment.amount.amount),
+            to_minor(payment.amount),
             payment.amount.currency,
             payment.status.value,
             payment.decline_reason,

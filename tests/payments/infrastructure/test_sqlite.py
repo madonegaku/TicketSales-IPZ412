@@ -1,5 +1,7 @@
 """Тести сховища платежів у SQLite: відповідність контракту інтерфейсу й збереження після перезапуску."""
 
+import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -42,6 +44,17 @@ def test_new_attempt_after_decline_replaces_payment(db_path):
     repository.save(Payment.succeeded(order_id, AMOUNT, NOW))
 
     assert repository.find_by_order(order_id).status is PaymentStatus.SUCCEEDED
+
+
+def test_amount_is_stored_in_minor_units_too(db_path):
+    repository = SqlitePaymentRepository(db_path)
+    payment = Payment.succeeded(uuid4(), Money(Decimal("1234.50")), NOW)
+
+    repository.save(payment)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        stored = connection.execute("SELECT amount_minor FROM payments").fetchone()
+    assert stored == (123450,)
 
 
 def test_payment_survives_service_restart(db_path):

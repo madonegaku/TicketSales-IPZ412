@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
+from sales.domain.exceptions import PaymentDeclinedError
 
 from sales.domain.payment_gateway import PaymentGateway
 from sales.domain.repositories import EventRepository, OrderRepository
@@ -24,11 +25,12 @@ class PayOrderResult:
 
 
 class PayOrder:
-    """Оплачує замовлення через платіжний шлюз і продає місця.
+    """Оплачує замовлення через платіжний сервіс і продає місця.
 
-    Транзакційна межа: усе, що може порушити доменне правило, перевіряється
-    до списання коштів, а збереження відбувається лише після успішної оплати
-    (С-04). Видачу квитків у ЛР 3 перенесено в сервіс tickets (подія OrderPaid).
+    Порядок (С-04): спочатку зберігається намір – «оплата в обробці», лише потім синхронний
+    виклик платіжного сервісу. Якщо він не відповів (PaymentUnavailableError), замовлення
+    лишається в обробці, місця – зарезервованими, повтор безпечний. Якщо банк відхилив
+    платіж – компенсація: замовлення знову очікує оплати. Квитки видає сервіс tickets.
     """
 
     def __init__(
@@ -47,11 +49,18 @@ class PayOrder:
         order = self._orders.get(command.order_id)
         event = self._events.get(order.event_id)
 
-        order.start_payment(self._clock())
+        order.start_or_resume_payment(self._clock())
         event.sell_seats([line.position for line in order.lines])
-        self._payment_gateway.charge(order.id, order.total)
-        order.confirm_payment()
+        self._orders.save(order)
 
+        try:
+            self._payment_gateway.charge(order.id, order.total)
+        except PaymentDeclinedError:
+            order.cancel_payment()
+            self._orders.save(order)
+            raise
+
+        order.confirm_payment()
         self._orders.save(order)
         self._events.save(event)
 

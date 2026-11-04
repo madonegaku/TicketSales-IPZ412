@@ -75,6 +75,18 @@ class Order:
             raise ReservationExpiredError("Строк резервування минув – оберіть місця знову.")
         self.status = OrderStatus.PAYMENT_PENDING
 
+    def start_or_resume_payment(self, now: datetime) -> None:
+        """Розпочинає оплату або продовжує вже розпочату – повтор після збою платіжного сервісу (С-04)."""
+        if self.status is OrderStatus.PAYMENT_PENDING:
+            return
+        self.start_payment(now)
+
+    def cancel_payment(self) -> None:
+        """Компенсація: банк відхилив оплату – замовлення знову очікує оплати до кінця резервування."""
+        if self.status is not OrderStatus.PAYMENT_PENDING:
+            raise InvalidOrderError("Скасувати можна лише розпочату й незавершену оплату.")
+        self.status = OrderStatus.AWAITING_PAYMENT
+
     def confirm_payment(self) -> None:
         """Підтверджує оплату один раз; час уже не перевіряється (С-04, С-05)."""
         self._ensure_not_paid()

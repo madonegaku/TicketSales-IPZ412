@@ -86,3 +86,36 @@ def test_payment_cannot_be_confirmed_without_being_started():
 
     with pytest.raises(InvalidOrderError):
         order.confirm_payment()
+
+
+def test_started_payment_can_be_resumed_after_reservation_expires():
+    order = make_order()
+    order.start_payment(NOW)
+
+    order.start_or_resume_payment(NOW + timedelta(minutes=20))
+
+    assert order.status is OrderStatus.PAYMENT_PENDING
+
+
+def test_paid_order_cannot_be_resumed():
+    order = make_order()
+    order.start_payment(NOW)
+    order.confirm_payment()
+
+    with pytest.raises(OrderAlreadyPaidError):
+        order.start_or_resume_payment(NOW)
+
+
+def test_declined_payment_is_cancelled_and_can_be_started_again():
+    order = make_order()
+    order.start_payment(NOW)
+
+    order.cancel_payment()
+    order.start_payment(NOW + timedelta(minutes=5))
+
+    assert order.status is OrderStatus.PAYMENT_PENDING
+
+
+def test_payment_that_was_not_started_cannot_be_cancelled():
+    with pytest.raises(InvalidOrderError):
+        make_order().cancel_payment()

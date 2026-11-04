@@ -12,6 +12,7 @@ from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
 from sales.domain.exceptions import (
     OrderAlreadyPaidError,
     PaymentDeclinedError,
+    PaymentUnavailableError,
     ReservationExpiredError,
 )
 from sales.domain.order import OrderStatus
@@ -97,3 +98,24 @@ def test_expired_reservation_is_not_charged(events, orders, gateway, order_id):
         pay_order.execute(PayOrderCommand(order_id))
 
     assert gateway.charges == []
+
+
+def test_unavailable_payment_service_keeps_order_pending(events, orders, order_id):
+    pay_order = make_pay_order(events, orders, StubPaymentGateway(unavailable=True))
+
+    with pytest.raises(PaymentUnavailableError):
+        pay_order.execute(PayOrderCommand(order_id))
+
+    assert orders.get(order_id).status is OrderStatus.PAYMENT_PENDING
+    assert events.get(EVENT_ID).seats[A1].status is SeatStatus.RESERVED
+
+
+def test_payment_is_completed_on_retry_after_reservation_expires(events, orders, gateway, order_id):
+    with pytest.raises(PaymentUnavailableError):
+        make_pay_order(events, orders, StubPaymentGateway(unavailable=True)).execute(PayOrderCommand(order_id))
+
+    make_pay_order(events, orders, gateway, minutes_later=20).execute(PayOrderCommand(order_id))
+
+    assert orders.get(order_id).status is OrderStatus.PAID
+    assert events.get(EVENT_ID).seats[A1].status is SeatStatus.SOLD
+    assert len(gateway.charges) == 1

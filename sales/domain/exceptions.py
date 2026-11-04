@@ -63,3 +63,10 @@ class NotFoundError(DomainError):
 
 class PaymentDeclinedError(DomainError):
     """Платіжний шлюз відхилив платіж."""
+
+
+class PaymentUnavailableError(DomainError):
+    """Платіжний сервіс не відповів або недоступний: оплата не підтверджена, замовлення лишається в обробці.
+
+    Повторна спроба безпечна – платіжний сервіс ідемпотентний за order_id.
+    """

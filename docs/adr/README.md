@@ -10,6 +10,7 @@
 | [ADR-002](0002-technology-stack.md) | Технологічний стек: Python, Django, PostgreSQL, Celery, Redis | Прийнято | 2026-10-29 | ЛР 1 |
 | [ADR-003](0003-domain-independent-of-orm.md) | Доменна модель відокремлена від Django ORM | Прийнято | 2026-10-31 | ЛР 2 |
 | [ADR-004](0004-service-boundaries-and-interaction.md) | Межі сервісів за доменними контекстами та способи їх взаємодії | Прийнято | 2026-11-04 | ЛР 3 |
+| [ADR-005](0005-sales-storage-postgresql.md) | Сховище sales – PostgreSQL з доступом через SQL, власні міграції та транзакційна вихідна черга | Прийнято | 2026-11-04 | ЛР 5 |
 
 ## Правила ведення
 

@@ -1,0 +1,11 @@
+.git
+.venv
+.import_linter_cache
+**/__pycache__
+*.sqlite3
+materials
+docs
+tests
+contracts
+CLAUDE.md
+CLAUDE.local.md

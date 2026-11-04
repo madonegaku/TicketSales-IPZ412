@@ -15,7 +15,7 @@ from typing import Protocol
 import httpx
 import redis
 
-from sales.application.get_hall_layout import GetHallLayout
+from sales.application.get_hall_layout import GetHallLayout, HallLayoutCache
 from sales.application.pay_order import PayOrder
 from sales.application.publish_pending_events import PublishPendingEvents
 from sales.application.reserve_seats import ReserveSeats
@@ -25,6 +25,7 @@ from sales.domain.outbox import Outbox
 from sales.domain.payment_gateway import PaymentGateway
 from sales.domain.repositories import EventRepository, OrderRepository, ReservationRepository
 from sales.infrastructure.demo_data import ensure_demo_event
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache, RedisHallLayoutCache
 from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
@@ -51,12 +52,14 @@ class SalesConfig(Protocol):
 
     SALES_DATABASE_URL – рядок підключення до власної бази sales (PostgreSQL); якщо не задано,
     сховище в пам'яті процесу (запуск без Docker, тести складання).
+    HALL_LAYOUT_CACHE_TTL – час життя запису кешу схеми залу в секундах; 0 – кеш вимкнено.
     """
 
     PAYMENTS_URL: str
     PAYMENTS_TIMEOUT_SECONDS: float
     REDIS_URL: str
     SALES_DATABASE_URL: str | None
+    HALL_LAYOUT_CACHE_TTL: int
 
 
 @dataclass(frozen=True)
@@ -81,15 +84,16 @@ class Container:
         self._config = config
         storage = self.create_storage()
         ensure_demo_event(storage.events)
+        cache = self.create_hall_layout_cache()
 
         self.outbox = storage.outbox
-        self.get_hall_layout = GetHallLayout(storage.events)
+        self.get_hall_layout = GetHallLayout(storage.events, cache)
         self.reserve_seats = ReserveSeats(
-            storage.events, storage.reservations, storage.orders, utc_now, storage.unit_of_work
+            storage.events, storage.reservations, storage.orders, utc_now, storage.unit_of_work, cache
         )
         self.pay_order = PayOrder(
             storage.events, storage.orders, self.create_payment_gateway(), storage.outbox, utc_now,
-            storage.unit_of_work,
+            storage.unit_of_work, cache,
         )
         self.outbox_relay = OutboxRelay(PublishPendingEvents(storage.outbox, self.create_event_publisher()))
 
@@ -106,6 +110,13 @@ class Container:
             PostgresEventRepository(database), PostgresReservationRepository(database),
             PostgresOrderRepository(database), PostgresOutbox(database), PostgresUnitOfWork(database),
         )
+
+    def create_hall_layout_cache(self) -> HallLayoutCache:
+        """Фабричний метод: кеш схеми залу в Redis (короткі тайм-аути – збій Redis не гальмує сторінку)."""
+        if self._config.HALL_LAYOUT_CACHE_TTL <= 0:
+            return NoHallLayoutCache()
+        client = redis.Redis.from_url(self._config.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
+        return RedisHallLayoutCache(client, self._config.HALL_LAYOUT_CACHE_TTL)
 
     def create_payment_gateway(self) -> PaymentGateway:
         """Фабричний метод: платіжний шлюз – HTTP-клієнт сервісу payments із тайм-аутом."""

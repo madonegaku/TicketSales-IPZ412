@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from sales.application.get_hall_layout import HallLayoutCache
 from sales.application.unit_of_work import UnitOfWork
 from sales.domain.exceptions import PaymentDeclinedError
 from sales.domain.order_paid import OrderPaid
@@ -39,6 +40,7 @@ class PayOrder:
          оплачене, місця продані й подія OrderPaid у вихідній черзі – в одній транзакції.
     На кроці 3 замовлення й захід перечитуються з блокуванням: копія з кроку 1 могла застаріти
     (інші покупці резервували місця того самого заходу), і її збереження затерло б їхні зміни.
+    Після кроку 3 кешована схема залу стає недійсною: місця продані.
     """
 
     def __init__(
@@ -49,6 +51,7 @@ class PayOrder:
         outbox: Outbox,
         clock: Callable[[], datetime],
         unit_of_work: UnitOfWork,
+        hall_layout_cache: HallLayoutCache,
     ) -> None:
         self._events = events
         self._orders = orders
@@ -56,6 +59,7 @@ class PayOrder:
         self._outbox = outbox
         self._clock = clock
         self._unit_of_work = unit_of_work
+        self._hall_layout_cache = hall_layout_cache
 
     def execute(self, command: PayOrderCommand) -> PayOrderResult:
         with self._unit_of_work.transaction():
@@ -82,5 +86,6 @@ class PayOrder:
             self._orders.save(order)
             self._events.save(event)
             self._outbox.add(OrderPaid.for_order(order, event, self._clock()))
+        self._hall_layout_cache.invalidate(event.id)
 
         return PayOrderResult(order.id)

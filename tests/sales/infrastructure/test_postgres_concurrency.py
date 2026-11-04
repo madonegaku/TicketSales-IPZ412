@@ -22,6 +22,7 @@ from sales.domain.event import SeatStatus  # noqa: E402
 from sales.domain.event_builder import EventBuilder  # noqa: E402
 from sales.domain.exceptions import SeatNotAvailableError  # noqa: E402
 from sales.domain.value_objects import Money, SeatPosition  # noqa: E402
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache  # noqa: E402
 from sales.infrastructure.postgres.database import Database  # noqa: E402
 from sales.infrastructure.postgres.migrate import migrate_database  # noqa: E402
 from sales.infrastructure.postgres.repositories import (  # noqa: E402
@@ -69,6 +70,7 @@ def test_two_buyers_cannot_reserve_the_same_seat(database):
         PostgresOrderRepository(database),
         lambda: NOW,
         PostgresUnitOfWork(database),
+        NoHallLayoutCache(),
     )
     start = threading.Barrier(2)
     outcomes = []

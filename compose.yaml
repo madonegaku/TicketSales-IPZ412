@@ -22,6 +22,8 @@ services:
       PAYMENTS_URL: http://payments:8000
       REDIS_URL: redis://redis:6379/0
       SALES_DATABASE_URL: postgresql://sales:sales@sales-db:5432/sales
+      # Час життя кешу схеми залу, с; для вимірювання без кешу: $env:HALL_LAYOUT_CACHE_TTL=0
+      HALL_LAYOUT_CACHE_TTL: ${HALL_LAYOUT_CACHE_TTL:-30}
     depends_on:
       payments:
         condition: service_started

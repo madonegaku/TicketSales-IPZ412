@@ -135,3 +135,7 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 # Власна база sales – PostgreSQL (ЛР 5); у Docker задає змінна середовища.
 # Не задано – сховище в пам'яті процесу (запуск без Docker, тести складання).
 SALES_DATABASE_URL = os.environ.get("SALES_DATABASE_URL") or None
+
+
+# Кеш схеми залу в Redis (ЛР 5): час життя запису в секундах; 0 – кеш вимкнено.
+HALL_LAYOUT_CACHE_TTL = int(os.environ.get("HALL_LAYOUT_CACHE_TTL", "30"))

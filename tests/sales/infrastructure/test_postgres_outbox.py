@@ -57,7 +57,7 @@ class OfflineContainer(Container):
 def container(pg_conninfo):
     config = SimpleNamespace(
         PAYMENTS_URL="http://unused", PAYMENTS_TIMEOUT_SECONDS=2, REDIS_URL="redis://unused",
-        SALES_DATABASE_URL=pg_conninfo,
+        SALES_DATABASE_URL=pg_conninfo, HALL_LAYOUT_CACHE_TTL=0,
     )
     return OfflineContainer(config)
 

@@ -24,6 +24,7 @@ from sales.infrastructure.in_memory import (
     InMemoryOutbox,
     InMemoryUnitOfWork,
 )
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache
 from sales.infrastructure.payment import StubPaymentGateway
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
@@ -53,7 +54,9 @@ def gateway():
 
 @pytest.fixture
 def order_id(events, orders):
-    reserve_seats = ReserveSeats(events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork())
+    reserve_seats = ReserveSeats(
+        events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork(), NoHallLayoutCache()
+    )
     command = ReserveSeatsCommand(EVENT_ID, uuid4(), (("Партер", 1, 1), ("Партер", 1, 2)))
     return reserve_seats.execute(command).order_id
 
@@ -61,7 +64,7 @@ def order_id(events, orders):
 def make_pay_order(events, orders, gateway, minutes_later=1, outbox=None):
     outbox = outbox if outbox is not None else InMemoryOutbox()
     clock = lambda: NOW + timedelta(minutes=minutes_later)  # noqa: E731
-    return PayOrder(events, orders, gateway, outbox, clock, InMemoryUnitOfWork())
+    return PayOrder(events, orders, gateway, outbox, clock, InMemoryUnitOfWork(), NoHallLayoutCache())
 
 
 def test_paid_order_sells_seats_and_is_charged(events, orders, gateway, order_id):
@@ -145,7 +148,9 @@ def test_reservation_made_during_payment_call_is_not_overwritten(events, orders,
     event = events.get(EVENT_ID)
     event.seats[a3] = Seat(a3, "Партер")
     events.save(event)
-    neighbour = ReserveSeats(events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork())
+    neighbour = ReserveSeats(
+        events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork(), NoHallLayoutCache()
+    )
 
     class GatewayWithConcurrentBuyer(StubPaymentGateway):
         def charge(self, order_id, amount):

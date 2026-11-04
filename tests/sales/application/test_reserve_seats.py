@@ -10,6 +10,7 @@ from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
 from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
 from sales.domain.exceptions import ReservationLimitError, SeatNotAvailableError
 from sales.domain.value_objects import Money, SeatPosition
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache
 from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
@@ -39,7 +40,9 @@ def orders():
 
 @pytest.fixture
 def reserve_seats(events, orders):
-    return ReserveSeats(events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork())
+    return ReserveSeats(
+        events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork(), NoHallLayoutCache()
+    )
 
 
 def command(*numbers):

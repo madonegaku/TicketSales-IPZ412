@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from sales.application.get_hall_layout import HallLayoutCache
 from sales.application.unit_of_work import UnitOfWork
 from sales.domain.order import Order
 from sales.domain.repositories import (
@@ -43,6 +44,7 @@ class ReserveSeats:
     разом або жодне. Захід завантажується з блокуванням, тож одночасні резервування того
     самого заходу виконуються по черзі й не можуть зайняти одне місце двічі (С-03), а ліміт
     покупця рахується без гонитви (С-06). Усі доменні перевірки – до першого save().
+    Після фіксації транзакції кешована схема залу стає недійсною: місця вже не вільні.
     """
 
     def __init__(
@@ -52,12 +54,14 @@ class ReserveSeats:
         orders: OrderRepository,
         clock: Callable[[], datetime],
         unit_of_work: UnitOfWork,
+        hall_layout_cache: HallLayoutCache,
     ) -> None:
         self._events = events
         self._reservations = reservations
         self._orders = orders
         self._clock = clock
         self._unit_of_work = unit_of_work
+        self._hall_layout_cache = hall_layout_cache
 
     def execute(self, command: ReserveSeatsCommand) -> ReserveSeatsResult:
         now = self._clock()
@@ -73,6 +77,7 @@ class ReserveSeats:
             self._events.save(event)
             self._reservations.save(reservation)
             self._orders.save(order)
+        self._hall_layout_cache.invalidate(event.id)
 
         return ReserveSeatsResult(
             order.id, order.total.amount, order.total.currency, order.payment_deadline

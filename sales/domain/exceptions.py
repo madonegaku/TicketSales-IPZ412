@@ -70,3 +70,7 @@ class PaymentUnavailableError(DomainError):
 
     Повторна спроба безпечна – платіжний сервіс ідемпотентний за order_id.
     """
+
+
+class EventPublishError(DomainError):
+    """Брокер подій недоступний – подія лишається у вихідній черзі й буде опублікована пізніше."""

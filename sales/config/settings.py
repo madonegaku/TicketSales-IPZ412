@@ -126,3 +126,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Сервіс payments: адреса й тайм-аут синхронного виклику (С-04); у Docker адресу задає змінна середовища.
 PAYMENTS_URL = os.environ.get("PAYMENTS_URL", "http://127.0.0.1:8001")
 PAYMENTS_TIMEOUT_SECONDS = float(os.environ.get("PAYMENTS_TIMEOUT_SECONDS", "2"))
+
+
+# Брокер подій Redis (Streams); у Docker адресу задає змінна середовища.
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")

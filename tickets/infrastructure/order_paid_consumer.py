@@ -8,12 +8,14 @@
 import json
 import logging
 import time
+from typing import TYPE_CHECKING
 from uuid import UUID
-
-import redis
 
 from tickets.application.issue_tickets import IssueTickets, IssueTicketsCommand
 from tickets.infrastructure.redis_stream import BrokerUnavailableError, RedisConsumerGroup, StreamMessage
+
+if TYPE_CHECKING:
+    import redis
 
 ORDER_PAID_STREAM = "sales.order-paid.v1"
 CONSUMER_GROUP = "tickets"
@@ -30,28 +32,25 @@ def to_command(payload: dict) -> IssueTicketsCommand:
 
 
 class OrderPaidConsumer:
-    """Учасник групи споживачів tickets на потоці OrderPaid."""
+    """Учасник групи споживачів tickets на потоці OrderPaid.
+
+    З Redis працює лише через адаптер RedisConsumerGroup (патерн Adapter): сам споживач
+    відповідає за порядок читання, розбір повідомлень за контрактом і підтвердження.
+    """
 
     def __init__(
         self,
-        client: redis.Redis,
+        client: "redis.Redis",
         issue_tickets: IssueTickets,
         consumer_name: str = "tickets-1",
         stream: str = ORDER_PAID_STREAM,
     ) -> None:
-        self._client = client
         self._issue_tickets = issue_tickets
-        self._consumer_name = consumer_name
-        self._stream = stream
         self._messages = RedisConsumerGroup(client, stream, CONSUMER_GROUP, consumer_name)
 
     def ensure_group(self) -> None:
         """Створює групу споживачів, якщо її ще немає (з першого повідомлення потоку)."""
-        try:
-            self._client.xgroup_create(self._stream, CONSUMER_GROUP, id="0", mkstream=True)
-        except redis.ResponseError as exc:
-            if "BUSYGROUP" not in str(exc):
-                raise
+        self._messages.ensure_exists()
 
     def process_batch(self, start_id: str = ">", block_ms: int | None = 5000) -> int:
         """Обробляє порцію повідомлень: «>» – нові, «0» – власні непідтверджені. Повертає їх кількість."""
@@ -78,6 +77,6 @@ class OrderPaidConsumer:
                 self.process_batch(start_id="0", block_ms=None)
                 while True:
                     self.process_batch()
-            except (redis.ConnectionError, BrokerUnavailableError):
+            except BrokerUnavailableError:
                 logger.warning("Redis недоступний – повторна спроба за 1 с.")
                 time.sleep(1)

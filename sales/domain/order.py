@@ -5,12 +5,8 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sales.domain.event import Event
-from sales.domain.exceptions import (
-    InvalidOrderError,
-    OrderAlreadyPaidError,
-    ReservationExpiredError,
-)
-from sales.domain.order_state import OrderStatus
+from sales.domain.exceptions import InvalidOrderError, OrderAlreadyPaidError
+from sales.domain.order_state import OrderStatus, state_of
 from sales.domain.reservation import Reservation
 from sales.domain.value_objects import Money, SeatPosition
 
@@ -60,18 +56,11 @@ class Order:
 
     def start_payment(self, now: datetime) -> None:
         """Розпочинає оплату, якщо строк резервування ще не минув (С-04)."""
-        self._ensure_not_paid()
-        if self.status is not OrderStatus.AWAITING_PAYMENT:
-            raise InvalidOrderError("Оплата цього замовлення вже розпочата.")
-        if now >= self.payment_deadline:
-            raise ReservationExpiredError("Строк резервування минув – оберіть місця знову.")
-        self.status = OrderStatus.PAYMENT_PENDING
+        self.status = state_of(self.status).start_payment(self.payment_deadline, now)
 
     def start_or_resume_payment(self, now: datetime) -> None:
         """Розпочинає оплату або продовжує вже розпочату – повтор після збою платіжного сервісу (С-04)."""
-        if self.status is OrderStatus.PAYMENT_PENDING:
-            return
-        self.start_payment(now)
+        self.status = state_of(self.status).resume_payment(self.payment_deadline, now)
 
     def cancel_payment(self) -> None:
         """Компенсація: банк відхилив оплату – замовлення знову очікує оплати до кінця резервування."""

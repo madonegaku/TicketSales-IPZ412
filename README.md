@@ -74,9 +74,9 @@
 | gateway | Шлюз nginx – єдина точка входу | – | [`gateway/`](gateway/) |
 | redis | Брокер подій (Redis Streams) | потік `sales.order-paid.v1` | – |
 
-Обґрунтування меж за індикаторами, перевірка змінами вимог і власники сутностей – 
+Обґрунтування меж за індикаторами, перевірка змінами вимог і власники сутностей – [docs/lab3/service-boundaries.md](docs/lab3/service-boundaries.md). Рішення – [ADR-004](docs/adr/0004-service-boundaries-and-interaction.md).
+
 Звіт (DOCX): [docs/reports/lab3-report.docx](docs/reports/lab3-report.docx)
-[docs/lab3/service-boundaries.md](docs/lab3/service-boundaries.md). Рішення – [ADR-004](docs/adr/0004-service-boundaries-and-interaction.md).
 
 ### Взаємодія
 

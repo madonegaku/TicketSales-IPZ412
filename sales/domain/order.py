@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from uuid import UUID, uuid4
 
 from sales.domain.event import Event
@@ -11,16 +10,9 @@ from sales.domain.exceptions import (
     OrderAlreadyPaidError,
     ReservationExpiredError,
 )
+from sales.domain.order_state import OrderStatus
 from sales.domain.reservation import Reservation
 from sales.domain.value_objects import Money, SeatPosition
-
-
-class OrderStatus(Enum):
-    """Стан замовлення."""
-
-    AWAITING_PAYMENT = "очікує оплати"
-    PAYMENT_PENDING = "оплата в обробці"
-    PAID = "оплачене"
 
 
 @dataclass(frozen=True)

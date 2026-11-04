@@ -2,6 +2,21 @@
 
 Формат – [Keep a Changelog](https://keepachangelog.com/uk/1.1.0/), кожна лабораторна робота позначається тегом `lab-N`.
 
+## [lab-4] – 2026-11-04
+
+### Додано
+
+- Скрипт показників коду `tools/measure.py` (гілки, рядки, вихідні залежності) і вимірювання до та після рефакторингу.
+- 31 характеризаційний тест: таблиця переходів `Order`, робота споживача з Redis Streams, демо-захід, складання sales.
+- Опис проблем, вибору патернів з альтернативами, показників і комітів – `docs/lab4/patterns.md`; діаграми класів до і після для К-1 і К-2.
+
+### Змінено (рефакторинг без зміни поведінки)
+
+- К-1, State: правила оплати `Order` перенесено в класи станів `AwaitingPayment`, `PaymentPending`, `Paid` (`sales/domain/order_state.py`).
+- К-2, Adapter: робота споживача `OrderPaid` з redis-py – через адаптер `RedisConsumerGroup` (`tickets/infrastructure/redis_stream.py`).
+- К-3, Builder: демо-захід створюється будівником `EventBuilder` (`sales/domain/event_builder.py`).
+- К-4, Factory Method: контейнер sales перенесено в `sales/config/composition.py` з фабричними методами платіжного шлюзу й публікатора подій та явними налаштуваннями.
+
 ## [lab-3] – 2026-11-04
 
 ### Додано

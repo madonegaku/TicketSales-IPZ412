@@ -19,7 +19,7 @@ from sales.domain.value_objects import Money, SeatPosition
 from sales.infrastructure.postgres.database import Database
 
 UPSERT_EVENT = """
-INSERT INTO events (id, title, sales_start, starts_at) VALUES (%s, %s, %s, %s)
+INSERT INTO events (id, title, sales_start, starts_at, organizer_id) VALUES (%s, %s, %s, %s, %s)
 ON CONFLICT (id) DO UPDATE SET title = excluded.title, sales_start = excluded.sales_start,
                                starts_at = excluded.starts_at
 """
@@ -55,7 +55,8 @@ class PostgresEventRepository(EventRepository):
         return self._load(event_id, lock=True)
 
     def _load(self, event_id: UUID, lock: bool) -> Event:
-        sql = "SELECT id, title, sales_start, starts_at FROM events WHERE id = %s" + (" FOR UPDATE" if lock else "")
+        sql = ("SELECT id, title, sales_start, starts_at, organizer_id FROM events WHERE id = %s"
+               + (" FOR UPDATE" if lock else ""))
         with self._db.connection() as connection:
             row = connection.execute(sql, (event_id,)).fetchone()
             if row is None:
@@ -72,7 +73,7 @@ class PostgresEventRepository(EventRepository):
 
     def save(self, event: Event) -> None:
         with self._db.connection() as connection, connection.cursor() as cursor:
-            cursor.execute(UPSERT_EVENT, (event.id, event.title, event.sales_start, event.starts_at))
+            cursor.execute(UPSERT_EVENT, (event.id, event.title, event.sales_start, event.starts_at, event.organizer_id))
             cursor.executemany(
                 UPSERT_CATEGORY,
                 [(event.id, c.name, c.price.amount, c.price.currency) for c in event.categories.values()],
@@ -87,7 +88,7 @@ class PostgresEventRepository(EventRepository):
 
 
 def to_event(row: tuple, categories: list[tuple], seats: list[tuple]) -> Event:
-    event_id, title, sales_start, starts_at = row
+    event_id, title, sales_start, starts_at, organizer_id = row
     return Event(
         event_id,
         title,
@@ -98,6 +99,7 @@ def to_event(row: tuple, categories: list[tuple], seats: list[tuple]) -> Event:
             for sector, seat_row, number, category, status in seats
         },
         starts_at,
+        organizer_id,
     )
 
 
@@ -147,6 +149,13 @@ class PostgresOrderRepository(OrderRepository):
         with self._db.connection() as connection:
             ids = [row[0] for row in connection.execute(
                 "SELECT id FROM orders WHERE buyer_id = %s ORDER BY payment_deadline DESC, id", (buyer_id,)
+            ).fetchall()]
+            return [self._load(order_id, lock=False) for order_id in ids]
+
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        with self._db.connection() as connection:
+            ids = [row[0] for row in connection.execute(
+                "SELECT id FROM orders WHERE event_id = %s ORDER BY id", (event_id,)
             ).fetchall()]
             return [self._load(order_id, lock=False) for order_id in ids]
 

@@ -79,6 +79,9 @@ class InMemoryOrderRepository(OrderRepository):
         orders = [deepcopy(order) for order in self._orders.values() if order.buyer_id == buyer_id]
         return sorted(orders, key=lambda order: order.payment_deadline, reverse=True)
 
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        return [deepcopy(order) for order in self._orders.values() if order.event_id == event_id]
+
     def get_for_update(self, order_id: UUID) -> Order:
         return self.get(order_id)
 

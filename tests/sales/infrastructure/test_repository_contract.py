@@ -167,6 +167,23 @@ def test_order_keeps_its_buyer_and_is_listed_for_that_buyer_only(storage):
     assert {order.buyer_id for order in mine} == {buyer}
 
 
+def test_event_keeps_organizer_and_orders_are_listed_by_event(storage):
+    organizer = uuid4()
+    event = EventBuilder(uuid4(), "Вечір").organizer(organizer).sales_start(NOW).starts_at(NOW + timedelta(days=1)) \
+        .category("Партер", Money(Decimal("100"))).seats("Партер", rows=[1], numbers=[1, 2]).build()
+    other = make_event()
+    storage.events.save(event)
+    storage.events.save(other)
+    for target, position in ((event, P1), (event, P2), (other, P1)):
+        reservation = Reservation.create(target.id, uuid4(), [position], NOW, 0)
+        storage.reservations.save(reservation)
+        storage.orders.save(Order.for_reservation(reservation, target))
+
+    assert storage.events.get(event.id).organizer_id == organizer
+    assert storage.events.get(other.id).organizer_id is None
+    assert len(storage.orders.list_by_event(event.id)) == 2
+
+
 def test_events_are_listed_by_start_time(storage):
     later, earlier = make_event(), make_event()
     earlier.starts_at = later.starts_at - timedelta(days=7)

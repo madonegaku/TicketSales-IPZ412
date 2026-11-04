@@ -61,6 +61,10 @@ class OrderRepository(ABC):
         """Замовлення покупця, новіші першими."""
 
     @abstractmethod
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        """Усі замовлення заходу – для статистики продажу організатора."""
+
+    @abstractmethod
     def get_for_update(self, order_id: UUID) -> Order:
         """Як get(), але замовлення заблоковано для змін іншими сценаріями до кінця транзакції."""
 

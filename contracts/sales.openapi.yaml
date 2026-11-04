@@ -43,6 +43,50 @@ paths:
                     type: array
                     items: {$ref: "#/components/schemas/EventSummary"}
         "401": {$ref: "#/components/responses/Unauthenticated"}
+    post:
+      operationId: createEvent
+      summary: Створити захід (роль organizer або admin); організатор – користувач із токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateEventRequest"}
+      responses:
+        "201":
+          description: Захід створено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event_id]
+                properties:
+                  event_id: {type: string, format: uuid}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Unauthenticated"}
+        "403": {$ref: "#/components/responses/Error"}
+        "409":
+          description: Порушено інваріант заходу (invalid_event, unknown_price_category, invalid_money)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+  /organizer/events:
+    get:
+      operationId: listOrganizerEvents
+      summary: Статистика продажу – свої заходи для organizer, усі – для admin
+      responses:
+        "200":
+          description: Заходи зі станом продажу
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items: {$ref: "#/components/schemas/EventSales"}
+        "401": {$ref: "#/components/responses/Unauthenticated"}
+        "403": {$ref: "#/components/responses/Error"}
   /events/{event_id}:
     get:
       operationId: getHallLayout
@@ -260,6 +304,52 @@ components:
               row: {type: integer, minimum: 1}
               number: {type: integer, minimum: 1}
               price: {$ref: "#/components/schemas/Money"}
+    CreateEventRequest:
+      type: object
+      required: [title, sales_start, starts_at, categories, sectors]
+      properties:
+        title: {type: string, minLength: 1}
+        sales_start: {type: string, format: date-time, description: "з часовим поясом"}
+        starts_at: {type: string, format: date-time, description: "пізніше за sales_start"}
+        categories:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [name, price]
+            properties:
+              name: {type: string, minLength: 1}
+              price: {type: string, pattern: "^[0-9]+(\\.[0-9]{1,2})?$"}
+              currency: {type: string, pattern: "^[A-Z]{3}$", default: UAH}
+        sectors:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [name, rows, seats_per_row]
+            properties:
+              name: {type: string, minLength: 1}
+              rows: {type: integer, minimum: 1, maximum: 50}
+              seats_per_row: {type: integer, minimum: 1, maximum: 60}
+              category: {type: string, description: "назва цінової категорії; за замовчуванням – назва сектору"}
+    EventSales:
+      type: object
+      required: [event_id, title, sales_start, starts_at, organizer_id, seats_total, seats_available, seats_reserved,
+                 seats_sold, paid_orders, revenue, currency]
+      properties:
+        event_id: {type: string, format: uuid}
+        title: {type: string}
+        sales_start: {type: string, format: date-time}
+        starts_at: {type: string, format: date-time}
+        organizer_id: {type: [string, "null"], format: uuid}
+        seats_total: {type: integer, minimum: 0}
+        seats_available: {type: integer, minimum: 0}
+        seats_reserved: {type: integer, minimum: 0}
+        seats_sold: {type: integer, minimum: 0}
+        paid_orders: {type: integer, minimum: 0}
+        revenue: {$ref: "#/components/schemas/Money"}
+        currency: {type: string, pattern: "^[A-Z]{3}$"}
     Error:
       type: object
       required: [code, message]

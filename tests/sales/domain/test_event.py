@@ -8,6 +8,7 @@ import pytest
 
 from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
 from sales.domain.exceptions import (
+    InvalidEventError,
     InvalidSeatSelectionError,
     InvalidSeatTransitionError,
     SalesNotStartedError,
@@ -96,6 +97,33 @@ def test_price_of_seat_is_its_category_price():
 def test_event_with_seat_in_unknown_category_cannot_be_created():
     with pytest.raises(UnknownPriceCategoryError):
         Event(uuid4(), "Концерт", SALES_START, {}, {A1: Seat(A1, "Партер")}, SALES_START + timedelta(days=30))
+
+
+@pytest.mark.parametrize(
+    ("title", "seats", "starts_at"),
+    [
+        ("Концерт", {}, SALES_START + timedelta(days=1)),
+        ("Концерт", {A1: Seat(A1, "Партер")}, SALES_START),
+        ("Концерт", {A1: Seat(A1, "Партер")}, SALES_START - timedelta(days=1)),
+        ("  ", {A1: Seat(A1, "Партер")}, SALES_START + timedelta(days=1)),
+    ],
+    ids=["no-seats", "starts-at-sales-start", "starts-before-sales", "empty-title"],
+)
+def test_event_invariants(title, seats, starts_at):
+    categories = {"Партер": PriceCategory("Партер", Money(Decimal("600")))}
+
+    with pytest.raises(InvalidEventError):
+        Event(uuid4(), title, SALES_START, categories, seats, starts_at)
+
+
+def test_event_remembers_its_organizer():
+    organizer = uuid4()
+    categories = {"Партер": PriceCategory("Партер", Money(Decimal("600")))}
+
+    event = Event(uuid4(), "Концерт", SALES_START, categories, {A1: Seat(A1, "Партер")},
+                  SALES_START + timedelta(days=1), organizer)
+
+    assert event.organizer_id == organizer
 
 
 def test_reserved_seats_are_sold():

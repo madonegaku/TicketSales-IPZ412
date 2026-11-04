@@ -51,6 +51,16 @@ def test_0003_fills_buyer_of_existing_orders_and_keeps_lab5_code_working(db):
     assert buyer_of(db, after) is None, "ЛР 5 після 0003 працює, buyer_id ще не обов'язковий"
 
 
+def test_0005_adds_optional_organizer_and_lab5_events_still_work(db):
+    migrate(db, target=5)
+    event_id = uuid4()
+
+    db.execute("INSERT INTO events (id, title, sales_start, starts_at) VALUES (%s, 'Концерт', %s, %s)",
+               (event_id, NOW, NOW + timedelta(days=30)))
+
+    assert db.execute("SELECT organizer_id FROM events WHERE id = %s", (event_id,)).fetchone() == (None,)
+
+
 def test_0004_fills_orders_written_after_0003_and_makes_buyer_required(db):
     migrate(db, target=3)
     buyer = uuid4()

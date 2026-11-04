@@ -12,7 +12,9 @@ import yaml
 from django.test import RequestFactory
 from jsonschema import Draft202012Validator, FormatChecker
 
+from sales.application.create_event import CreateEvent
 from sales.application.get_buyer_orders import GetBuyerOrders
+from sales.application.get_organizer_events import GetOrganizerEvents
 from sales.application.get_hall_layout import GetHallLayout
 from sales.application.list_events import ListEvents
 from sales.application.pay_order import PayOrder
@@ -69,7 +71,11 @@ class System:
         pay_order = PayOrder(events, orders, self.gateway, InMemoryOutbox(), clock, unit_of_work, cache)
         get_orders = GetBuyerOrders(orders, events)
         wrap = lambda view, *roles, **deps: authenticated(partial(view, **deps), secret=SECRET, roles=roles)  # noqa: E731
-        self.list_events = wrap(api.list_events, list_events=ListEvents(events))
+        self.events = wrap(api.events, list_events=ListEvents(events),
+                           create_event=CreateEvent(events, unit_of_work))
+        self.list_events = self.events
+        self.organizer_events = wrap(api.organizer_events, "organizer", "admin",
+                                     get_organizer_events=GetOrganizerEvents(events, orders))
         self.hall = wrap(api.hall, get_hall_layout=GetHallLayout(events, cache))
         self.reserve = wrap(api.reserve, "buyer", reserve_seats=reserve_seats)
         self.pay = wrap(api.pay, "buyer", pay_order=pay_order)
@@ -168,6 +174,88 @@ def test_owner_pays_once_and_others_cannot_see_or_pay_the_order(system):
     assert json.loads(paid.content) == {"order_id": order_id, "status": "PAID"}
     assert (again.status_code, json.loads(again.content)["code"]) == (409, "order_already_paid")
     assert len(system.gateway.charges) == 1
+
+
+NEW_EVENT = {
+    "title": "Вечір джазу",
+    "sales_start": "2026-11-01T10:00:00+02:00",
+    "starts_at": "2026-12-31T19:00:00+02:00",
+    "categories": [{"name": "Балкон", "price": "350"}, {"name": "Партер", "price": "800.50"}],
+    "sectors": [{"name": "Партер", "rows": 2, "seats_per_row": 5}, {"name": "Балкон", "rows": 1, "seats_per_row": 4}],
+}
+
+
+def post_event(system, subject, body, *roles):
+    request = factory.post("/", data=json.dumps(body), content_type="application/json",
+                           HTTP_AUTHORIZATION=token(subject, *roles))
+    return system.events(request)
+
+
+def stats(system, subject, *roles):
+    return system.organizer_events(factory.get("/", HTTP_AUTHORIZATION=token(subject, *roles)))
+
+
+def test_organizer_creates_event_and_buyers_see_it(system):
+    organizer = uuid4()
+
+    created = post_event(system, organizer, NEW_EVENT, "organizer")
+    listed = system.list_events(factory.get("/", HTTP_AUTHORIZATION=token(uuid4())))
+
+    assert_matches_contract(created, "post", "/events")
+    assert created.status_code == 201
+    titles = [e["title"] for e in json.loads(listed.content)["events"]]
+    assert "Вечір джазу" in titles
+    event = next(e for e in json.loads(listed.content)["events"] if e["title"] == "Вечір джазу")
+    assert (event["seats_total"], event["price_from"]) == (14, "350.00")
+
+
+@pytest.mark.parametrize(
+    ("change", "status", "code"),
+    [
+        ({"starts_at": "2026-10-01T19:00:00+02:00"}, 409, "invalid_event"),
+        ({"starts_at": "2026-12-31T19:00:00"}, 400, "invalid_request"),
+        ({"sectors": [{"name": "Ложа", "rows": 1, "seats_per_row": 2}]}, 409, "unknown_price_category"),
+        ({"sectors": [{"name": "Партер", "rows": 500, "seats_per_row": 5}]}, 409, "invalid_event"),
+        ({"categories": [{"name": "Партер", "price": "-1"}]}, 409, "invalid_money"),
+    ],
+    ids=["starts-before-sales", "naive-time", "unknown-category", "too-many-rows", "negative-price"],
+)
+def test_invalid_event_is_rejected(system, change, status, code):
+    response = post_event(system, uuid4(), {**NEW_EVENT, **change}, "organizer")
+
+    assert_matches_contract(response, "post", "/events")
+    assert (response.status_code, json.loads(response.content)["code"]) == (status, code)
+
+
+def test_buyer_cannot_create_events_or_see_sales(system):
+    created = post_event(system, uuid4(), NEW_EVENT, "buyer")
+    sales_stats = stats(system, uuid4(), "buyer")
+
+    assert_matches_contract(created, "post", "/events")
+    assert (created.status_code, sales_stats.status_code) == (403, 403)
+
+
+def test_organizer_sees_sales_of_own_events_only_and_admin_sees_all(system):
+    organizer, buyer = uuid4(), uuid4()
+    event_id = json.loads(post_event(system, organizer, NEW_EVENT, "organizer").content)["event_id"]
+    post_event(system, uuid4(), {**NEW_EVENT, "title": "Чужий захід"}, "organizer")
+    body = json.dumps({"seats": [{"sector": "Партер", "row": 1, "number": 1}, {"sector": "Балкон", "row": 1,
+                                                                                  "number": 1}]})
+    reserved = system.reserve(factory.post("/", data=body, content_type="application/json",
+                                           HTTP_AUTHORIZATION=token(buyer)), event_id=UUID(event_id))
+    system.pay_as(buyer, json.loads(reserved.content)["order_id"])
+    system.reserve(factory.post("/", data=json.dumps({"seats": [{"sector": "Партер", "row": 2, "number": 5}]}),
+                                content_type="application/json", HTTP_AUTHORIZATION=token(uuid4())),
+                   event_id=UUID(event_id))
+
+    own = stats(system, organizer, "organizer")
+    everything = stats(system, uuid4(), "admin")
+
+    assert_matches_contract(own, "get", "/organizer/events")
+    [event] = json.loads(own.content)["events"]
+    assert (event["seats_total"], event["seats_sold"], event["seats_reserved"], event["seats_available"]) == (14, 2, 1, 11)
+    assert (event["paid_orders"], event["revenue"]) == (1, "1150.50")
+    assert len(json.loads(everything.content)["events"]) == 3, "демо-захід і два нові"
 
 
 def test_unavailable_payment_service_is_503_and_declined_is_402():

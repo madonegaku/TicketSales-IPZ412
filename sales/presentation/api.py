@@ -6,11 +6,15 @@
 """
 
 import re
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from django.http import HttpRequest, JsonResponse
 
+from sales.application.create_event import CreateEvent, CreateEventCommand, SectorSpec
 from sales.application.get_buyer_orders import GetBuyerOrders, OrderView
+from sales.application.get_organizer_events import GetOrganizerEvents
 from sales.application.get_hall_layout import GetHallLayout
 from sales.application.list_events import ListEvents
 from sales.application.pay_order import PayOrder, PayOrderCommand
@@ -66,9 +70,68 @@ def order_json(view: OrderView) -> dict:
     }
 
 
-def list_events(request: HttpRequest, *, principal: Principal, list_events: ListEvents) -> JsonResponse:
+ORGANIZERS = ("organizer", "admin")
+
+
+def events(request: HttpRequest, *, principal: Principal, list_events: ListEvents,
+           create_event: CreateEvent) -> JsonResponse:
+    """GET – афіша (будь-яка роль); POST – створити захід (організатор або адміністратор)."""
+    if request.method == "GET":
+        return events_list(list_events)
+    if request.method != "POST":
+        return method_not_allowed()
+    if not principal.has_any(ORGANIZERS):
+        return error(403, "forbidden", "Створювати заходи може лише організатор.")
+    try:
+        command = create_event_command(read_json(request), principal.subject_id)
+    except (ValueError, KeyError, TypeError, InvalidOperation):
+        return error(400, "invalid_request", "Некоректні дані заходу: перевірте дати (ISO 8601 з поясом), ціни й сектори.")
+    try:
+        event_id = create_event.execute(command)
+    except DomainError as exc:
+        return domain_error(exc)
+    return ok({"event_id": str(event_id)}, status=201)
+
+
+def aware(value: str) -> datetime:
+    moment = datetime.fromisoformat(value)
+    if moment.tzinfo is None:
+        raise ValueError("Час має містити часовий пояс.")
+    return moment
+
+
+def create_event_command(data: dict, organizer_id: UUID) -> CreateEventCommand:
+    categories = tuple(
+        (str(c["name"]), Decimal(str(c["price"])), str(c.get("currency", "UAH"))) for c in data["categories"]
+    )
+    sectors = tuple(
+        SectorSpec(str(s["name"]), int(s["rows"]), int(s["seats_per_row"]), str(s.get("category", s["name"])))
+        for s in data["sectors"]
+    )
+    return CreateEventCommand(organizer_id, str(data["title"]), aware(data["sales_start"]), aware(data["starts_at"]),
+                              categories, sectors)
+
+
+def organizer_events(request: HttpRequest, *, principal: Principal,
+                     get_organizer_events: GetOrganizerEvents) -> JsonResponse:
+    """Статистика продажу: організатор бачить свої заходи, адміністратор – усі."""
     if request.method != "GET":
         return method_not_allowed()
+    scope = None if "admin" in principal.roles else principal.subject_id
+    views = get_organizer_events.execute(scope)
+    return ok({"events": [
+        {
+            "event_id": str(v.event_id), "title": v.title, "sales_start": v.sales_start.isoformat(),
+            "starts_at": v.starts_at.isoformat(), "organizer_id": str(v.organizer_id) if v.organizer_id else None,
+            "seats_total": v.seats_total, "seats_available": v.seats_available, "seats_reserved": v.seats_reserved,
+            "seats_sold": v.seats_sold, "paid_orders": v.paid_orders, "revenue": money(v.revenue),
+            "currency": v.currency,
+        }
+        for v in views
+    ]})
+
+
+def events_list(list_events: ListEvents) -> JsonResponse:
     events = [
         {
             "event_id": str(e.event_id), "title": e.title, "sales_start": e.sales_start.isoformat(),

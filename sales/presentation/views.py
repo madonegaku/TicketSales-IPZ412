@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from sales.application.get_hall_layout import GetHallLayout
 from sales.application.pay_order import PayOrder, PayOrderCommand
 from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand   
-from sales.domain.exceptions import DomainError, NotFoundError
+from sales.domain.exceptions import DomainError, NotFoundError, PaymentUnavailableError
 
 # У ЛР 2 автентифікації ще немає, тому всі запити – від одного демонстраційного покупця.
 DEMO_BUYER_ID = UUID("00000000-0000-0000-0000-0000000000b1")
@@ -60,6 +60,8 @@ def pay(request: HttpRequest, order_id: UUID, *, pay_order: PayOrder) -> HttpRes
     """Оплачує замовлення та показує коди квитків або причину відмови."""
     try:
         result = pay_order.execute(PayOrderCommand(order_id))
+    except PaymentUnavailableError as exc:
+        return render(request, "presentation/payment.html", {"pending": str(exc), "order_id": order_id})
     except DomainError as exc:
         return render(request, "presentation/payment.html", {"error": str(exc)})
     return render(request, "presentation/payment.html", {"order_id": result.order_id})

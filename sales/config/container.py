@@ -15,7 +15,10 @@ from sales.infrastructure.in_memory import (
     InMemoryOrderRepository,
     InMemoryReservationRepository,
 )
-from sales.infrastructure.payment import StubPaymentGateway
+import httpx
+from django.conf import settings
+
+from sales.infrastructure.payments_client import HttpPaymentGateway
 
 
 def utc_now() -> datetime:
@@ -33,7 +36,10 @@ class Container:
 
         self.get_hall_layout = GetHallLayout(events)
         self.reserve_seats = ReserveSeats(events, reservations, orders, utc_now)
-        self.pay_order = PayOrder(events, orders, StubPaymentGateway(), utc_now)
+        payment_gateway = HttpPaymentGateway(
+            httpx.Client(base_url=settings.PAYMENTS_URL, timeout=settings.PAYMENTS_TIMEOUT_SECONDS)
+        )
+        self.pay_order = PayOrder(events, orders, payment_gateway, utc_now)
 
 
 container = Container()

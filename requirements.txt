@@ -4,3 +4,4 @@ import-linter>=2.0
 openapi-spec-validator>=0.9
 PyYAML>=6.0
 jsonschema>=4.26
+httpx>=0.28

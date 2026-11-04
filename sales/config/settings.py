@@ -9,8 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
-from pathlib import Path
+import os
+from pathlib import Path 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -121,3 +121,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Сервіс payments: адреса й тайм-аут синхронного виклику (С-04); у Docker адресу задає змінна середовища.
+PAYMENTS_URL = os.environ.get("PAYMENTS_URL", "http://127.0.0.1:8001")
+PAYMENTS_TIMEOUT_SECONDS = float(os.environ.get("PAYMENTS_TIMEOUT_SECONDS", "2"))

@@ -4,28 +4,23 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sales.domain.event import Event, PriceCategory, Seat
+from sales.domain.event_builder import EventBuilder
 from sales.domain.repositories import EventRepository
-from sales.domain.value_objects import Money, SeatPosition
+from sales.domain.value_objects import Money
 
 DEMO_EVENT_ID = UUID("00000000-0000-0000-0000-000000000018")
 
 
 def seed_demo_event(events: EventRepository) -> None:
     """Додає концерт: партер 5 рядів по 10 місць (600 грн) і VIP 1 ряд з 6 місць (1500 грн)."""
-    categories = {
-        "Партер": PriceCategory("Партер", Money(Decimal("600"))),
-        "VIP": PriceCategory("VIP", Money(Decimal("1500"))),
-    }
-    seats = {}
-    for row in range(1, 6):
-        for number in range(1, 11):
-            position = SeatPosition("Партер", row, number)
-            seats[position] = Seat(position, "Партер")
-    for number in range(1, 7):
-        position = SeatPosition("VIP", 1, number)
-        seats[position] = Seat(position, "VIP")
-
-    sales_start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    starts_at = datetime(2026, 12, 20, 17, 0, tzinfo=timezone.utc)
-    events.save(Event(DEMO_EVENT_ID, "Концерт симфонічного оркестру", sales_start, categories, seats, starts_at))
+    event = (
+        EventBuilder(DEMO_EVENT_ID, "Концерт симфонічного оркестру")
+        .sales_start(datetime(2026, 1, 1, tzinfo=timezone.utc))
+        .starts_at(datetime(2026, 12, 20, 17, 0, tzinfo=timezone.utc))
+        .category("Партер", Money(Decimal("600")))
+        .category("VIP", Money(Decimal("1500")))
+        .seats("Партер", rows=range(1, 6), numbers=range(1, 11))
+        .seats("VIP", rows=[1], numbers=range(1, 7))
+        .build()
+    )
+    events.save(event)

@@ -6,6 +6,10 @@
 
   v1 – ЛР 3: пише й читає amount (текст).
   v2 – розширення: пише amount і amount_minor, читає amount.
+  v3 – перенесення: пише amount і amount_minor, читає amount_minor.
+
+Порядок розгортання: 0002 → усі екземпляри на v2 → 0003 → v3. Тому після 0003 поруч можуть
+працювати лише v2 і v3 (v1 уже немає).
 """
 
 import sqlite3
@@ -20,7 +24,9 @@ CONSTANT = "'UAH', 'succeeded', NULL, '2026-11-04T12:00:00+00:00'"
 
 V1_WRITE = f"INSERT INTO payments ({COLUMNS.format(amount='amount')}) VALUES (?, ?, ?, {CONSTANT})"
 V2_WRITE = f"INSERT INTO payments ({COLUMNS.format(amount='amount, amount_minor')}) VALUES (?, ?, ?, ?, {CONSTANT})"
+V3_WRITE = V2_WRITE
 READ_AMOUNT = "SELECT amount FROM payments WHERE order_id = ?"
+READ_AMOUNT_MINOR = "SELECT amount_minor FROM payments WHERE order_id = ?"
 
 
 @pytest.fixture
@@ -41,6 +47,10 @@ def v2_write(db, order_id, amount, amount_minor):
 
 def read_amount(db, order_id):
     return db.execute(READ_AMOUNT, (order_id,)).fetchone()[0]
+
+
+def read_amount_minor(db, order_id):
+    return db.execute(READ_AMOUNT_MINOR, (order_id,)).fetchone()[0]
 
 
 def test_0002_keeps_rows_written_before_it(db):
@@ -74,3 +84,36 @@ def test_after_0002_row_without_any_amount_is_rejected(db):
 
     with pytest.raises(sqlite3.IntegrityError):
         v2_write(db, "o1", None, None)
+
+
+@pytest.mark.parametrize(
+    ("amount", "expected_minor"),
+    [("1200.00", 120000), ("600", 60000), ("0.10", 10), ("12.5", 1250), ("99999.99", 9999999), ("0", 0)],
+)
+def test_0003_fills_minor_units_for_rows_written_by_v1(db, amount, expected_minor):
+    migrate(db, target=2)
+    v1_write(db, "o1", amount)
+
+    migrate(db, target=3)
+
+    assert read_amount_minor(db, "o1") == expected_minor
+
+
+def test_0003_does_not_touch_rows_written_by_v2(db):
+    migrate(db, target=2)
+    v2_write(db, "o1", "1500.00", 150000)
+
+    migrate(db, target=3)
+
+    assert (read_amount(db, "o1"), read_amount_minor(db, "o1")) == ("1500.00", 150000)
+
+
+def test_after_0003_v2_and_v3_read_each_others_rows(db):
+    migrate(db, target=3)
+
+    v2_write(db, "o2", "600.00", 60000)
+    db.execute(V3_WRITE, ("o3", "p-o3", "1500.00", 150000))
+    db.commit()
+
+    assert read_amount(db, "o3") == "1500.00", "v2 читає рядок, записаний v3"
+    assert read_amount_minor(db, "o2") == 60000, "v3 читає рядок, записаний v2"

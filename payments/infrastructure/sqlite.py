@@ -12,12 +12,13 @@ from payments.domain.repositories import PaymentRepository
 from payments.domain.value_objects import Money
 from payments.infrastructure.migrate import migrate
 
+# Етап «перенесення»: читання переведено на amount_minor; запис – ще в обидва стовпці, щоб
+# попередня версія, яка під час розгортання працює поруч і читає amount, бачила нові рядки.
 SELECT_BY_ORDER = """
-SELECT payment_id, order_id, amount, currency, status, decline_reason, created_at
+SELECT payment_id, order_id, amount_minor, currency, status, decline_reason, created_at
 FROM payments WHERE order_id = ?
 """
 
-# Етап «розширення»: сума пишеться в обидва стовпці (паралельний запис), читається ще стара.
 UPSERT = """
 INSERT INTO payments (order_id, payment_id, amount, amount_minor, currency, status, decline_reason, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -37,6 +38,11 @@ def to_minor(money: Money) -> int:
     return int(money.amount * 100)
 
 
+def from_minor(amount_minor: int) -> Decimal:
+    """Копійки → гривні з двома знаками: 120000 → Decimal('1200.00')."""
+    return Decimal(amount_minor).scaleb(-2)
+
+
 class SqlitePaymentRepository(PaymentRepository):
     """Платежі в таблиці payments; order_id – первинний ключ, тож двох платежів на замовлення бути не може.
 
@@ -53,11 +59,11 @@ class SqlitePaymentRepository(PaymentRepository):
             row = connection.execute(SELECT_BY_ORDER, (str(order_id),)).fetchone()
         if row is None:
             return None
-        payment_id, order, amount, currency, status, decline_reason, created_at = row
+        payment_id, order, amount_minor, currency, status, decline_reason, created_at = row
         return Payment(
             UUID(payment_id),
             UUID(order),
-            Money(Decimal(amount), currency),
+            Money(from_minor(amount_minor), currency),
             PaymentStatus(status),
             datetime.fromisoformat(created_at),
             decline_reason,

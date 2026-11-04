@@ -25,6 +25,96 @@
 
 ![Діаграма контексту системи (C4, рівень 1)](docs/assets/c4-context.png)
 
+## Запуск і перевірка
+
+Потрібні Docker Desktop (WSL 2), для тестів – Python 3.12, для розробки інтерфейсу – Meteor 3.5. Команди виконуються в PowerShell із кореня репозиторію.
+
+### Запуск усієї системи
+
+1. Запустіть Docker Desktop і дочекайтеся стану «Engine running».
+2. Зберіть і запустіть контейнери у фоні (перший запуск триває кілька хвилин – збирається образ web):
+
+   ```
+   docker compose up --build -d
+   ```
+
+3. Перевірте, що всі 9 контейнерів працюють (`running`): gateway, web, web-db, sales, sales-db, payments, tickets, tickets-consumer, redis.
+
+   ```
+   docker compose ps
+   ```
+
+| Адреса | Що відкривається |
+| --- | --- |
+| http://localhost:8090/ | інтерфейс на Meteor: вхід, реєстрація, ролі |
+| http://localhost:8080/ | сторінки Django ЛР 2–5: схема залу, оплата, «Мої квитки», контроль на вході (`/validate/`) |
+
+payments ззовні недоступний (його викликає лише sales), `/api/` на порту 8080 повертає 404. Журнали сервісу – `docker compose logs -f <сервіс>`; збій окремого сервісу імітується командами `docker compose stop <сервіс>` і `docker compose start <сервіс>`.
+
+Тестові облікові записи (лише для розробки; задаються змінними `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SEED_DEMO_USERS`, у Docker демо-користувачі створюються за замовчуванням):
+
+| Роль | Пошта | Пароль |
+| --- | --- | --- |
+| Адміністратор | `admin@ticketsales.local` | `admin-dev-password` |
+| Організатор | `organizer@ticketsales.local` | `organizer-dev-password` |
+| Контролер | `inspector@ticketsales.local` | `inspector-dev-password` |
+| Покупець | `buyer@ticketsales.local` | `buyer-dev-password` |
+
+Новий покупець може зареєструватися сам; інші ролі призначає адміністратор.
+
+### Розробка інтерфейсу з гарячим оновленням
+
+Сервіси працюють у Docker (`docker compose up -d`), Meteor – локально (sales і tickets доступні з хоста лише на `127.0.0.1:8100` і `:8200`):
+
+```
+cd web
+meteor npm install
+$env:RSPACK_DEVSERVER_PORT="3010"
+$env:SEED_DEMO_USERS="1"
+meteor run
+```
+
+Інтерфейс – http://localhost:3000/. `RSPACK_DEVSERVER_PORT` потрібен, бо за замовчуванням сервер розробки Rspack займає порт 8080 шлюзу. Локальний Meteor має власну базу користувачів, тому замовлення, зроблені тут, не видно в інтерфейсі на порту 8090, і навпаки. На Windows перший запуск може впасти на збиранні `argon2` («'cross-env' is not recognized»): `meteor npm install -g cross-env` і один раз додати каталог `dev_bundle` Meteor до `PATH` вікна (`$env:Path = "$env:LOCALAPPDATA\.meteor\packages\meteor-tool\3.5.4\mt-os.windows.x86_64\dev_bundle;$env:Path"`).
+
+### Тести й перевірка залежностей
+
+Віртуальне середовище й залежності – один раз:
+
+```
+py -3.12 -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Перевірка (інтеграційним тестам sales потрібен контейнер `sales-db`; без нього вони пропускаються):
+
+```
+docker compose up -d sales-db
+python -m pytest
+lint-imports
+```
+
+Очікуваний результат: 328 тестів пройдено, 1 пропущено; `lint-imports` – 3 контракти kept.
+
+### Вимкнення
+
+Вимикати – у зворотному порядку:
+
+1. Meteor (`meteor run`) – `Ctrl+C` у його вікні. Робіть це **до** будь-яких команд git: працюючий Meteor відтворює файли `web/.meteor/*`, і `git switch` чи `git merge` відмовляються виконуватися.
+2. Сервіси, запущені вручну (`runserver`, `python -m tickets.config.consumer`), – `Ctrl+C` у їхніх вікнах.
+3. Контейнери – один із варіантів:
+
+   | Команда | Що робить | Наступний запуск |
+   | --- | --- | --- |
+   | `docker compose stop` | зупиняє контейнери; контейнери й дані лишаються | `docker compose start` або `docker compose up -d` |
+   | `docker compose down` | видаляє контейнери й мережу; томи з даними лишаються | `docker compose up -d` |
+
+4. Перевірте, що нічого не працює (список порожній): `docker compose ps`.
+5. Віртуальне середовище Python – `deactivate`.
+6. За потреби – закрити Docker Desktop (значок у треї → «Quit Docker Desktop») і звільнити пам'ять WSL командою `wsl --shutdown`.
+
+**Скидання всіх даних** – `docker compose down -v`: видаляє томи (заходи й замовлення в PostgreSQL, платежі, квитки, потік Redis, користувачів web). Під час наступного запуску знову створюються лише демо-захід, адміністратор і демо-користувачі.
+
 ## Лабораторна робота № 1: Архітектурний контекст системи та обґрунтування архітектурного стилю
 
 | Розділ звіту | Документ |
@@ -93,26 +183,7 @@
 - `lint-imports`: сервіси не імпортують один одного; шари всередині кожного сервісу; домен і застосунок без Django.
 - Експеримент із вимкненими payments, споживачем tickets, Redis і веб-процесом tickets – [docs/lab3/experiment.md](docs/lab3/experiment.md).
 
-### Запуск і перевірка
-
-Уся система (потрібен Docker Desktop):
-
-```
-docker compose up --build
-```
-
-Після запуску відкрийте http://localhost:8080/ – вибір місць, оплата, «Мої квитки», контроль на вході (`/validate/`). Збій окремого сервісу імітується командами `docker compose stop <сервіс>` і `docker compose start <сервіс>`.
-
-Тести й перевірка залежностей (інтеграційним тестам sales потрібен контейнер `sales-db`; без нього вони пропускаються):
-
-```
-py -3.12 -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-docker compose up -d sales-db
-python -m pytest
-lint-imports
-```
+Запуск, тести й вимкнення – розділ [«Запуск і перевірка»](#запуск-і-перевірка).
 
 ## Лабораторна робота № 4: Застосування патернів проєктування в рефакторингу коду
 
@@ -157,26 +228,7 @@ lint-imports
 
 Контракти: [contracts/sales.openapi.yaml](contracts/sales.openapi.yaml), [contracts/tickets.openapi.yaml](contracts/tickets.openapi.yaml). Права перевіряються тричі: в інтерфейсі, у методі Meteor і в сервісі за роллю з токена.
 
-**Запуск у Docker** – `docker compose up --build`, інтерфейс – http://localhost:8090/. Тестові облікові записи (лише для розробки; задаються змінними `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SEED_DEMO_USERS`):
-
-| Роль | Пошта | Пароль |
-| --- | --- | --- |
-| Адміністратор | `admin@ticketsales.local` | `admin-dev-password` |
-| Організатор | `organizer@ticketsales.local` | `organizer-dev-password` |
-| Контролер | `inspector@ticketsales.local` | `inspector-dev-password` |
-| Покупець | `buyer@ticketsales.local` | `buyer-dev-password` |
-
-**Розробка з гарячим оновленням** – сервіси в Docker (`docker compose up -d`), Meteor локально (sales і tickets доступні з хоста лише на `127.0.0.1:8100` і `:8200`):
-
-```
-cd web
-meteor npm install
-$env:RSPACK_DEVSERVER_PORT="3010"
-$env:SEED_DEMO_USERS="1"
-meteor run
-```
-
-Інтерфейс – http://localhost:3000/. `RSPACK_DEVSERVER_PORT` потрібен, бо за замовчуванням сервер розробки Rspack займає порт 8080 шлюзу. На Windows перший запуск може впасти на збиранні `argon2` («'cross-env' is not recognized»): `meteor npm install -g cross-env` і один раз додати каталог `dev_bundle` Meteor до `PATH` вікна (`$env:Path = "$env:LOCALAPPDATA\.meteor\packages\meteor-tool\3.5.4\mt-os.windows.x86_64\dev_bundle;$env:Path"`).
+Запуск у Docker (http://localhost:8090/), тестові облікові записи й розробка з гарячим оновленням (http://localhost:3000/) – розділ [«Запуск і перевірка»](#запуск-і-перевірка).
 
 Обмеження: автотестів інтерфейсу немає (перевірено вручну всі ролі); HS256 зі спільним секретом – для навчального проєкту (для експлуатації – RS256); tickets не знає покупця замовлення, власника перевіряє web у sales.
 

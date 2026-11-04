@@ -19,4 +19,9 @@ urlpatterns = [
         ),
         name="validate",
     ),
+    path(
+        "tickets/orders/<uuid:order_id>/",
+        partial(views.order_tickets, get_order_tickets=container.get_order_tickets),
+        name="order-tickets",
+    ),
 ]

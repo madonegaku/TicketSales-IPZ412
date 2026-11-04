@@ -9,6 +9,7 @@ from uuid import UUID
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from tickets.application.get_order_tickets import GetOrderTickets
 from tickets.application.validate_ticket import ValidateTicket, ValidateTicketCommand
 from tickets.domain.exceptions import DomainError
 
@@ -32,3 +33,9 @@ def validate(
         except DomainError as exc:
             context["error"] = str(exc)
     return render(request, "presentation/validate.html", context)
+
+
+def order_tickets(request: HttpRequest, order_id: UUID, *, get_order_tickets: GetOrderTickets) -> HttpResponse:
+    """Сторінка «Мої квитки»: квитки замовлення або повідомлення, що вони ще видаються."""
+    tickets = get_order_tickets.execute(order_id)
+    return render(request, "presentation/order_tickets.html", {"tickets": tickets, "order_id": order_id})

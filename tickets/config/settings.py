@@ -46,3 +46,9 @@ USE_TZ = True
 
 # Захід, на вході якого працює контролер (Inspector); у ЛР 3 – демонстраційний концерт.
 INSPECTOR_EVENT_ID = os.environ.get("INSPECTOR_EVENT_ID", "00000000-0000-0000-0000-000000000018")
+
+# Власна база tickets – файл SQLite; спільна для веб-процесу й процесу-споживача цього ж сервісу.
+TICKETS_DB_PATH = os.environ.get("TICKETS_DB_PATH", str(BASE_DIR / "tickets.sqlite3"))
+
+# Брокер подій Redis (Streams); у Docker адресу задає змінна середовища.
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")

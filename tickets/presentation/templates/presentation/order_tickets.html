@@ -1,0 +1,17 @@
+{% extends "presentation/base.html" %}
+
+{% block title %}Мої квитки{% endblock %}
+
+{% block content %}
+<h1>Мої квитки</h1>
+{% if tickets %}
+  <p>Покажіть код контролерові на вході.</p>
+  <ul>
+    {% for ticket in tickets %}
+      <li>{{ ticket.sector }}, ряд {{ ticket.row }}, місце {{ ticket.number }} – <code>{{ ticket.code }}</code> ({{ ticket.status }})</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>Квитки ще видаються – оновіть сторінку за кілька секунд.</p>
+{% endif %}
+{% endblock %}

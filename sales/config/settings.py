@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-em!ycl4qaz9js99e(b4optyz0ssr4$^ek&x!gq48rdg+vfssmg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# localhost – браузер через шлюз; sales – сервер web усередині мережі Compose (ADR-006).
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "sales"]
 
 
 # Application definition

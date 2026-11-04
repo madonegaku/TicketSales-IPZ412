@@ -35,7 +35,8 @@ export async function callApi(base, method, path, { user, roles }, body) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Meteor.Error(data.code || `http_${response.status}`, data.message || "Помилка сервісу.");
+    if (!data.code) console.warn(`Неочікувана відповідь: ${method} ${base}${path} – HTTP ${response.status}`);
+    throw new Meteor.Error(data.code || `http_${response.status}`, data.message || `Помилка сервісу (HTTP ${response.status}).`);
   }
   return data;
 }

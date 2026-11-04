@@ -1,0 +1,6 @@
+node_modules
+.meteor/local
+_build
+build-assets
+build-chunks
+.rsdoctor

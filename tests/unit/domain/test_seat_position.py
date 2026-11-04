@@ -2,8 +2,8 @@
 
 import pytest
 
-from ticketing.domain.exceptions import InvalidSeatPositionError
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.exceptions import InvalidSeatPositionError
+from sales.domain.value_objects import SeatPosition
 
 
 def test_same_positions_are_equal_and_usable_as_dict_key():

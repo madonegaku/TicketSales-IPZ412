@@ -4,11 +4,11 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.application.validate_ticket import ValidateTicket, ValidateTicketCommand
-from ticketing.domain.exceptions import NotFoundError, TicketAlreadyUsedError
-from ticketing.domain.ticket import Ticket, TicketStatus
-from ticketing.domain.value_objects import SeatPosition
-from ticketing.infrastructure.in_memory import InMemoryTicketRepository
+from sales.application.validate_ticket import ValidateTicket, ValidateTicketCommand
+from sales.domain.exceptions import NotFoundError, TicketAlreadyUsedError
+from sales.domain.ticket import Ticket, TicketStatus
+from sales.domain.value_objects import SeatPosition
+from sales.infrastructure.in_memory import InMemoryTicketRepository
 
 EVENT_ID = uuid4()
 CODE = "qr-test-code"

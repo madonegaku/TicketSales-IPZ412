@@ -11,11 +11,11 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 
-from ticketing.application.get_hall_layout import GetHallLayout
-from ticketing.application.pay_order import PayOrder, PayOrderCommand
-from ticketing.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
-from ticketing.application.validate_ticket import ValidateTicket, ValidateTicketCommand
-from ticketing.domain.exceptions import DomainError, NotFoundError
+from sales.application.get_hall_layout import GetHallLayout
+from sales.application.pay_order import PayOrder, PayOrderCommand
+from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
+from sales.application.validate_ticket import ValidateTicket, ValidateTicketCommand
+from sales.domain.exceptions import DomainError, NotFoundError
 
 # У ЛР 2 автентифікації ще немає, тому всі запити – від одного демонстраційного покупця.
 DEMO_BUYER_ID = UUID("00000000-0000-0000-0000-0000000000b1")

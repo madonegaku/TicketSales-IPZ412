@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from ticketing.domain.exceptions import ReservationLimitError
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.exceptions import ReservationLimitError
+from sales.domain.value_objects import SeatPosition
 
 RESERVATION_TTL = timedelta(minutes=15)
 MAX_SEATS_PER_BUYER = 6

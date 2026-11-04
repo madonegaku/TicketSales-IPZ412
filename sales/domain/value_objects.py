@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from ticketing.domain.exceptions import (
+from sales.domain.exceptions import (
     CurrencyMismatchError,
     InvalidMoneyError,
     InvalidSeatPositionError,

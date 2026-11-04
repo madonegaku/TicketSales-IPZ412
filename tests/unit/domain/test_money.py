@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import pytest
 
-from ticketing.domain.exceptions import CurrencyMismatchError, InvalidMoneyError
-from ticketing.domain.value_objects import Money
+from sales.domain.exceptions import CurrencyMismatchError, InvalidMoneyError
+from sales.domain.value_objects import Money
 
 
 def test_adding_money_returns_new_value():

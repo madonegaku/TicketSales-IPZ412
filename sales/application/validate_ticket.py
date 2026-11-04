@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from ticketing.domain.repositories import TicketRepository
+from sales.domain.repositories import TicketRepository
 
 
 @dataclass(frozen=True)

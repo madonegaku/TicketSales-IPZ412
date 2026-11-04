@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from ticketing.domain.payment_gateway import PaymentGateway
-from ticketing.domain.repositories import EventRepository, OrderRepository, TicketRepository
-from ticketing.domain.ticket import Ticket
+from sales.domain.payment_gateway import PaymentGateway
+from sales.domain.repositories import EventRepository, OrderRepository, TicketRepository
+from sales.domain.ticket import Ticket
 
 
 @dataclass(frozen=True)

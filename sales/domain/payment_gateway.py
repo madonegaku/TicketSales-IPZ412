@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from ticketing.domain.value_objects import Money
+from sales.domain.value_objects import Money
 
 
 class PaymentGateway(ABC):

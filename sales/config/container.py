@@ -7,18 +7,18 @@
 
 from datetime import datetime, timezone
 
-from ticketing.application.get_hall_layout import GetHallLayout
-from ticketing.application.pay_order import PayOrder
-from ticketing.application.reserve_seats import ReserveSeats
-from ticketing.application.validate_ticket import ValidateTicket
-from ticketing.infrastructure.demo_data import seed_demo_event
-from ticketing.infrastructure.in_memory import (
+from sales.application.get_hall_layout import GetHallLayout
+from sales.application.pay_order import PayOrder
+from sales.application.reserve_seats import ReserveSeats
+from sales.application.validate_ticket import ValidateTicket
+from sales.infrastructure.demo_data import seed_demo_event
+from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
     InMemoryTicketRepository,
 )
-from ticketing.infrastructure.payment import StubPaymentGateway
+from sales.infrastructure.payment import StubPaymentGateway
 
 
 def utc_now() -> datetime:

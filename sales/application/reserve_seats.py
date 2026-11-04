@@ -6,14 +6,14 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from ticketing.domain.order import Order
-from ticketing.domain.repositories import (
+from sales.domain.order import Order
+from sales.domain.repositories import (
     EventRepository,
     OrderRepository,
     ReservationRepository,
 )
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.reservation import Reservation
+from sales.domain.value_objects import SeatPosition
 
 
 @dataclass(frozen=True)

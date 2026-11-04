@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID, uuid4
 
-from ticketing.domain.exceptions import (
+from sales.domain.exceptions import (
     InvalidTicketError,
     OrderNotPaidError,
     TicketAlreadyUsedError,
 )
-from ticketing.domain.order import Order, OrderStatus
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.order import Order, OrderStatus
+from sales.domain.value_objects import SeatPosition
 
 
 class TicketStatus(Enum):

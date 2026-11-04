@@ -4,7 +4,7 @@ import ast
 import sys
 from pathlib import Path
 
-DOMAIN_DIR = Path(__file__).resolve().parents[2] / "ticketing" / "domain"
+DOMAIN_DIR = Path(__file__).resolve().parents[2] / "sales" / "domain"
 
 
 def imported_modules(path: Path) -> list[tuple[str, int]]:
@@ -21,7 +21,7 @@ def imported_modules(path: Path) -> list[tuple[str, int]]:
 
 def is_allowed_in_domain(module: str) -> bool:
     top_level = module.split(".")[0]
-    is_domain = module == "ticketing.domain" or module.startswith("ticketing.domain.")
+    is_domain = module == "sales.domain" or module.startswith("sales.domain.")
     return top_level in sys.stdlib_module_names or is_domain
 
 

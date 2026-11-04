@@ -8,17 +8,17 @@ from copy import deepcopy
 from datetime import datetime
 from uuid import UUID
 
-from ticketing.domain.event import Event
-from ticketing.domain.exceptions import NotFoundError
-from ticketing.domain.order import Order
-from ticketing.domain.repositories import (
+from sales.domain.event import Event
+from sales.domain.exceptions import NotFoundError
+from sales.domain.order import Order
+from sales.domain.repositories import (
     EventRepository,
     OrderRepository,
     ReservationRepository,
     TicketRepository,
 )
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.ticket import Ticket
+from sales.domain.reservation import Reservation
+from sales.domain.ticket import Ticket
 
 
 class InMemoryEventRepository(EventRepository):

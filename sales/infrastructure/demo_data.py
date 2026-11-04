@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from ticketing.domain.event import Event, PriceCategory, Seat
-from ticketing.domain.repositories import EventRepository
-from ticketing.domain.value_objects import Money, SeatPosition
+from sales.domain.event import Event, PriceCategory, Seat
+from sales.domain.repositories import EventRepository
+from sales.domain.value_objects import Money, SeatPosition
 
 DEMO_EVENT_ID = UUID("00000000-0000-0000-0000-000000000018")
 

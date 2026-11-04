@@ -5,14 +5,14 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from ticketing.domain.event import Event
-from ticketing.domain.exceptions import (
+from sales.domain.event import Event
+from sales.domain.exceptions import (
     InvalidOrderError,
     OrderAlreadyPaidError,
     ReservationExpiredError,
 )
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.value_objects import Money, SeatPosition
+from sales.domain.reservation import Reservation
+from sales.domain.value_objects import Money, SeatPosition
 
 
 class OrderStatus(Enum):

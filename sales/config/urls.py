@@ -5,9 +5,9 @@ from functools import partial
 from django.urls import path
 from django.views.generic import RedirectView
 
-from config.container import container
-from ticketing.infrastructure.demo_data import DEMO_EVENT_ID
-from ticketing.presentation import views
+from sales.config.container import container
+from sales.infrastructure.demo_data import DEMO_EVENT_ID
+from sales.presentation import views
 
 urlpatterns = [
     path("", RedirectView.as_view(url=f"/events/{DEMO_EVENT_ID}/")),

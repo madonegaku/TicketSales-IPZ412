@@ -6,15 +6,15 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.domain.event import Event, PriceCategory, Seat
-from ticketing.domain.exceptions import (
+from sales.domain.event import Event, PriceCategory, Seat
+from sales.domain.exceptions import (
     InvalidOrderError,
     OrderAlreadyPaidError,
     ReservationExpiredError,
 )
-from ticketing.domain.order import Order, OrderStatus
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.value_objects import Money, SeatPosition
+from sales.domain.order import Order, OrderStatus
+from sales.domain.reservation import Reservation
+from sales.domain.value_objects import Money, SeatPosition
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 A1 = SeatPosition("Партер", 1, 1)

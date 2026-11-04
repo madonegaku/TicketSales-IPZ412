@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from ticketing.domain.event import SeatStatus
-from ticketing.domain.repositories import EventRepository
+from sales.domain.event import SeatStatus
+from sales.domain.repositories import EventRepository
 
 
 @dataclass(frozen=True)

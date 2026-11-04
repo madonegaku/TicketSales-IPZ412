@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.domain.event import Event, PriceCategory, Seat, SeatStatus
-from ticketing.domain.exceptions import NotFoundError
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.value_objects import Money, SeatPosition
-from ticketing.infrastructure.in_memory import (
+from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
+from sales.domain.exceptions import NotFoundError
+from sales.domain.reservation import Reservation
+from sales.domain.value_objects import Money, SeatPosition
+from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryReservationRepository,
 )

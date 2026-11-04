@@ -6,15 +6,15 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.domain.event import Event, PriceCategory, Seat, SeatStatus
-from ticketing.domain.exceptions import (
+from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
+from sales.domain.exceptions import (
     InvalidSeatSelectionError,
     InvalidSeatTransitionError,
     SalesNotStartedError,
     SeatNotAvailableError,
     UnknownPriceCategoryError,
 )
-from ticketing.domain.value_objects import Money, SeatPosition
+from sales.domain.value_objects import Money, SeatPosition
 
 SALES_START = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 AFTER_START = SALES_START + timedelta(hours=1)

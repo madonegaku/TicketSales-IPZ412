@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-from ticketing.application.get_hall_layout import GetHallLayout
-from ticketing.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
-from ticketing.infrastructure.demo_data import DEMO_EVENT_ID, seed_demo_event
-from ticketing.infrastructure.in_memory import (
+from sales.application.get_hall_layout import GetHallLayout
+from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
+from sales.infrastructure.demo_data import DEMO_EVENT_ID, seed_demo_event
+from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,

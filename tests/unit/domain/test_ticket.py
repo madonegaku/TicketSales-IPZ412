@@ -6,14 +6,14 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.domain.exceptions import (
+from sales.domain.exceptions import (
     InvalidTicketError,
     OrderNotPaidError,
     TicketAlreadyUsedError,
 )
-from ticketing.domain.order import Order, OrderLine
-from ticketing.domain.ticket import Ticket, TicketStatus
-from ticketing.domain.value_objects import Money, SeatPosition
+from sales.domain.order import Order, OrderLine
+from sales.domain.ticket import Ticket, TicketStatus
+from sales.domain.value_objects import Money, SeatPosition
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 EVENT_ID = uuid4()

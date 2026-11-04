@@ -2,9 +2,9 @@
 
 from uuid import UUID
 
-from ticketing.domain.exceptions import PaymentDeclinedError
-from ticketing.domain.payment_gateway import PaymentGateway
-from ticketing.domain.value_objects import Money
+from sales.domain.exceptions import PaymentDeclinedError
+from sales.domain.payment_gateway import PaymentGateway
+from sales.domain.value_objects import Money
 
 
 class StubPaymentGateway(PaymentGateway):

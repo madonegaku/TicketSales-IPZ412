@@ -2,9 +2,9 @@
 
 import pytest
 
-from ticketing.domain.event import Seat, SeatStatus
-from ticketing.domain.exceptions import InvalidSeatTransitionError, SeatNotAvailableError
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.event import Seat, SeatStatus
+from sales.domain.exceptions import InvalidSeatTransitionError, SeatNotAvailableError
+from sales.domain.value_objects import SeatPosition
 
 
 def make_seat(status=SeatStatus.AVAILABLE):

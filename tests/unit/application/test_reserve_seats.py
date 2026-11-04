@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
-from ticketing.domain.event import Event, PriceCategory, Seat, SeatStatus
-from ticketing.domain.exceptions import ReservationLimitError, SeatNotAvailableError
-from ticketing.domain.value_objects import Money, SeatPosition
-from ticketing.infrastructure.in_memory import (
+from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
+from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
+from sales.domain.exceptions import ReservationLimitError, SeatNotAvailableError
+from sales.domain.value_objects import Money, SeatPosition
+from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,

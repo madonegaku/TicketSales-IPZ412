@@ -6,23 +6,23 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.application.pay_order import PayOrder, PayOrderCommand
-from ticketing.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
-from ticketing.domain.event import Event, PriceCategory, Seat, SeatStatus
-from ticketing.domain.exceptions import (
+from sales.application.pay_order import PayOrder, PayOrderCommand
+from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
+from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
+from sales.domain.exceptions import (
     OrderAlreadyPaidError,
     PaymentDeclinedError,
     ReservationExpiredError,
 )
-from ticketing.domain.order import OrderStatus
-from ticketing.domain.value_objects import Money, SeatPosition
-from ticketing.infrastructure.in_memory import (
+from sales.domain.order import OrderStatus
+from sales.domain.value_objects import Money, SeatPosition
+from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
     InMemoryTicketRepository,
 )
-from ticketing.infrastructure.payment import StubPaymentGateway
+from sales.infrastructure.payment import StubPaymentGateway
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 EVENT_ID = uuid4()

@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from ticketing.domain.exceptions import ReservationLimitError
-from ticketing.domain.reservation import Reservation
-from ticketing.domain.value_objects import SeatPosition
+from sales.domain.exceptions import ReservationLimitError
+from sales.domain.reservation import Reservation
+from sales.domain.value_objects import SeatPosition
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 

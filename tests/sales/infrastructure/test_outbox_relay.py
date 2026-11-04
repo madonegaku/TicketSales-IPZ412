@@ -49,3 +49,32 @@ def test_events_wait_while_broker_is_down_and_are_delivered_after_recovery():
     finally:
         relay.stop()
         relay.join(timeout=1)
+
+
+class FlakyOutbox(InMemoryOutbox):
+    """Черга, сховище якої спершу недоступне (як вимкнена база sales)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failures = 3
+
+    def pending(self):
+        if self.failures:
+            self.failures -= 1
+            raise ConnectionError("база sales недоступна")
+        return super().pending()
+
+
+def test_relay_survives_storage_failure_and_keeps_publishing():
+    outbox, publisher = FlakyOutbox(), SwitchablePublisher()
+    publisher.available = True
+    relay = OutboxRelay(PublishPendingEvents(outbox, publisher), interval=0.01)
+    relay.start()
+    try:
+        outbox.add(OrderPaid(uuid4(), NOW, uuid4(), uuid4(), "Концерт", NOW, (SeatPosition("Партер", 1, 1),)))
+
+        assert wait_until(lambda: len(publisher.published) == 1)
+        assert relay.is_alive()
+    finally:
+        relay.stop()
+        relay.join(timeout=1)

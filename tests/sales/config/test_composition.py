@@ -15,7 +15,9 @@ from sales.domain.order_paid import OrderPaid
 from sales.infrastructure.demo_data import DEMO_EVENT_ID
 from sales.infrastructure.payment import StubPaymentGateway
 
-CONFIG = SimpleNamespace(PAYMENTS_URL="http://unused", PAYMENTS_TIMEOUT_SECONDS=2, REDIS_URL="redis://unused")
+CONFIG = SimpleNamespace(
+    PAYMENTS_URL="http://unused", PAYMENTS_TIMEOUT_SECONDS=2, REDIS_URL="redis://unused", SALES_DATABASE_URL=None
+)
 BUYER_ID = DEMO_EVENT_ID
 
 

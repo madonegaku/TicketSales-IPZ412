@@ -21,9 +21,14 @@ services:
     environment:
       PAYMENTS_URL: http://payments:8000
       REDIS_URL: redis://redis:6379/0
+      SALES_DATABASE_URL: postgresql://sales:sales@sales-db:5432/sales
     depends_on:
-      - payments
-      - redis
+      payments:
+        condition: service_started
+      redis:
+        condition: service_started
+      sales-db:
+        condition: service_healthy
 
   payments:
     build:

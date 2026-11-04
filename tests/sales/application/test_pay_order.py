@@ -10,6 +10,7 @@ from sales.application.pay_order import PayOrder, PayOrderCommand
 from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
 from sales.domain.event import Event, PriceCategory, Seat, SeatStatus
 from sales.domain.exceptions import (
+    NotFoundError,
     OrderAlreadyPaidError,
     PaymentDeclinedError,
     PaymentUnavailableError,
@@ -76,6 +77,22 @@ def test_paid_order_sells_seats_and_is_charged(events, orders, gateway, order_id
     assert orders.get(order_id).status is OrderStatus.PAID
     assert events.get(EVENT_ID).seats[A1].status is SeatStatus.SOLD
     assert gateway.charges == [(order_id, Money(Decimal("1200")))]
+
+
+def test_buyer_cannot_pay_someone_elses_order(events, orders, gateway, order_id):
+    with pytest.raises(NotFoundError):
+        make_pay_order(events, orders, gateway).execute(PayOrderCommand(order_id, buyer_id=uuid4()))
+
+    assert gateway.charges == []
+    assert orders.get(order_id).status is OrderStatus.AWAITING_PAYMENT
+
+
+def test_owner_can_pay_own_order(events, orders, gateway, order_id):
+    owner = orders.get(order_id).buyer_id
+
+    make_pay_order(events, orders, gateway).execute(PayOrderCommand(order_id, buyer_id=owner))
+
+    assert orders.get(order_id).status is OrderStatus.PAID
 
 
 def test_order_is_charged_only_once(events, orders, gateway, order_id):

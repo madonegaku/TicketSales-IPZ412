@@ -25,6 +25,10 @@ class EventRepository(ABC):
         """Повертає захід; якщо його немає – кидає NotFoundError."""
 
     @abstractmethod
+    def list_all(self) -> list[Event]:
+        """Усі заходи за часом початку (афіша)."""
+
+    @abstractmethod
     def get_for_update(self, event_id: UUID) -> Event:
         """Як get(), але захід заблоковано для змін іншими сценаріями до кінця транзакції."""
 
@@ -51,6 +55,14 @@ class OrderRepository(ABC):
     @abstractmethod
     def get(self, order_id: UUID) -> Order:
         """Повертає замовлення; якщо його немає – кидає NotFoundError."""
+
+    @abstractmethod
+    def list_by_buyer(self, buyer_id: UUID) -> list[Order]:
+        """Замовлення покупця, новіші першими."""
+
+    @abstractmethod
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        """Усі замовлення заходу – для статистики продажу організатора."""
 
     @abstractmethod
     def get_for_update(self, order_id: UUID) -> Order:

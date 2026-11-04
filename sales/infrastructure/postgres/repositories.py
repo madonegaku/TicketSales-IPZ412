@@ -19,7 +19,7 @@ from sales.domain.value_objects import Money, SeatPosition
 from sales.infrastructure.postgres.database import Database
 
 UPSERT_EVENT = """
-INSERT INTO events (id, title, sales_start, starts_at) VALUES (%s, %s, %s, %s)
+INSERT INTO events (id, title, sales_start, starts_at, organizer_id) VALUES (%s, %s, %s, %s, %s)
 ON CONFLICT (id) DO UPDATE SET title = excluded.title, sales_start = excluded.sales_start,
                                starts_at = excluded.starts_at
 """
@@ -44,13 +44,19 @@ class PostgresEventRepository(EventRepository):
     def get(self, event_id: UUID) -> Event:
         return self._load(event_id, lock=False)
 
+    def list_all(self) -> list[Event]:
+        with self._db.connection() as connection:
+            ids = [row[0] for row in connection.execute("SELECT id FROM events ORDER BY starts_at, id").fetchall()]
+            return [self._load(event_id, lock=False) for event_id in ids]
+
     def get_for_update(self, event_id: UUID) -> Event:
         """SELECT … FOR UPDATE на рядку events: усі сценарії, що змінюють місця заходу, блокують
         цей рядок першими, тож змінюють місця одного заходу по черзі (С-03)."""
         return self._load(event_id, lock=True)
 
     def _load(self, event_id: UUID, lock: bool) -> Event:
-        sql = "SELECT id, title, sales_start, starts_at FROM events WHERE id = %s" + (" FOR UPDATE" if lock else "")
+        sql = ("SELECT id, title, sales_start, starts_at, organizer_id FROM events WHERE id = %s"
+               + (" FOR UPDATE" if lock else ""))
         with self._db.connection() as connection:
             row = connection.execute(sql, (event_id,)).fetchone()
             if row is None:
@@ -67,7 +73,7 @@ class PostgresEventRepository(EventRepository):
 
     def save(self, event: Event) -> None:
         with self._db.connection() as connection, connection.cursor() as cursor:
-            cursor.execute(UPSERT_EVENT, (event.id, event.title, event.sales_start, event.starts_at))
+            cursor.execute(UPSERT_EVENT, (event.id, event.title, event.sales_start, event.starts_at, event.organizer_id))
             cursor.executemany(
                 UPSERT_CATEGORY,
                 [(event.id, c.name, c.price.amount, c.price.currency) for c in event.categories.values()],
@@ -82,7 +88,7 @@ class PostgresEventRepository(EventRepository):
 
 
 def to_event(row: tuple, categories: list[tuple], seats: list[tuple]) -> Event:
-    event_id, title, sales_start, starts_at = row
+    event_id, title, sales_start, starts_at, organizer_id = row
     return Event(
         event_id,
         title,
@@ -93,6 +99,7 @@ def to_event(row: tuple, categories: list[tuple], seats: list[tuple]) -> Event:
             for sector, seat_row, number, category, status in seats
         },
         starts_at,
+        organizer_id,
     )
 
 
@@ -138,12 +145,26 @@ class PostgresOrderRepository(OrderRepository):
     def get(self, order_id: UUID) -> Order:
         return self._load(order_id, lock=False)
 
+    def list_by_buyer(self, buyer_id: UUID) -> list[Order]:
+        with self._db.connection() as connection:
+            ids = [row[0] for row in connection.execute(
+                "SELECT id FROM orders WHERE buyer_id = %s ORDER BY payment_deadline DESC, id", (buyer_id,)
+            ).fetchall()]
+            return [self._load(order_id, lock=False) for order_id in ids]
+
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        with self._db.connection() as connection:
+            ids = [row[0] for row in connection.execute(
+                "SELECT id FROM orders WHERE event_id = %s ORDER BY id", (event_id,)
+            ).fetchall()]
+            return [self._load(order_id, lock=False) for order_id in ids]
+
     def get_for_update(self, order_id: UUID) -> Order:
         """SELECT … FOR UPDATE: два одночасні запити оплати одного замовлення виконуються по черзі."""
         return self._load(order_id, lock=True)
 
     def _load(self, order_id: UUID, lock: bool) -> Order:
-        sql = "SELECT id, reservation_id, event_id, payment_deadline, status FROM orders WHERE id = %s"
+        sql = "SELECT id, reservation_id, event_id, buyer_id, payment_deadline, status FROM orders WHERE id = %s"
         with self._db.connection() as connection:
             row = connection.execute(sql + (" FOR UPDATE" if lock else ""), (order_id,)).fetchone()
             if row is None:
@@ -158,9 +179,10 @@ class PostgresOrderRepository(OrderRepository):
     def save(self, order: Order) -> None:
         with self._db.connection() as connection, connection.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO orders (id, reservation_id, event_id, payment_deadline, status) "
-                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (id) DO UPDATE SET status = excluded.status",
-                (order.id, order.reservation_id, order.event_id, order.payment_deadline, order.status.name),
+                "INSERT INTO orders (id, reservation_id, event_id, buyer_id, payment_deadline, status) "
+                "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO UPDATE SET status = excluded.status",
+                (order.id, order.reservation_id, order.event_id, order.buyer_id, order.payment_deadline,
+                 order.status.name),
             )
             cursor.executemany(
                 "INSERT INTO order_lines (order_id, line_no, sector, seat_row, seat_number, price_amount, "
@@ -174,11 +196,12 @@ class PostgresOrderRepository(OrderRepository):
 
 
 def to_order(row: tuple, lines: list[tuple]) -> Order:
-    order_id, reservation_id, event_id, payment_deadline, status = row
+    order_id, reservation_id, event_id, buyer_id, payment_deadline, status = row
     return Order(
         order_id,
         reservation_id,
         event_id,
+        buyer_id,
         tuple(
             OrderLine(SeatPosition(sector, seat_row, number), Money(amount, currency))
             for sector, seat_row, number, amount, currency in lines

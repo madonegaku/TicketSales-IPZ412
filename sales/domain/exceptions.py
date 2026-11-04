@@ -37,6 +37,10 @@ class InvalidSeatSelectionError(DomainError):
     """Вибір місць некоректний: місця немає в схемі залу або його обрано двічі."""
 
 
+class InvalidEventError(DomainError):
+    """Порушено інваріант заходу: немає місць, початок не пізніше за старт продажу, некоректна схема залу."""
+
+
 class UnknownPriceCategoryError(DomainError):
     """Місце посилається на цінову категорію, якої немає в заході."""
 

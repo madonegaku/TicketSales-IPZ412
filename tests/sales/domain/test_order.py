@@ -40,6 +40,15 @@ def test_order_total_is_sum_of_seat_prices():
     assert make_order().total == Money(Decimal("2100"))
 
 
+def test_order_belongs_to_buyer_of_its_reservation():
+    event = make_event()
+    buyer = uuid4()
+    order = Order.for_reservation(Reservation.create(event.id, buyer, [A1], NOW, 0), event)
+
+    assert order.buyer_id == buyer
+    assert order.belongs_to(buyer) and not order.belongs_to(uuid4())
+
+
 def test_price_change_after_reservation_does_not_change_order_total():
     event = make_event()
     order = make_order(event)

@@ -1,16 +1,47 @@
-# Система продажу квитків (ЛР 3): шлюз, три сервіси з власними даними й брокер подій.
-# Запуск: docker compose up --build; адреса для браузера – http://localhost:8080/
+# Система продажу квитків: шлюз, три сервіси з власними даними, брокер подій (ЛР 3–5)
+# та інтерфейс користувачів на Meteor (ADR-006).
+# Запуск: docker compose up --build
+#   http://localhost:8090/ – інтерфейс із ролями (web); http://localhost:8080/ – сторінки Django ЛР 2–5.
+
+x-auth-secret: &auth-secret
+  # Секрет підпису токенів доступу web → sales, tickets (ADR-006); значення – лише для розробки.
+  AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-dev-only-change-me-ticketsales-web-token}
 
 services:
   gateway:
     image: nginx:1.27-alpine
     ports:
       - "8080:80"
+      - "8090:8090"
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - sales
       - tickets
+      - web
+
+  web:
+    build: ./web
+    environment:
+      <<: *auth-secret
+      MONGO_URL: mongodb://web-db:27017/web
+      ROOT_URL: http://localhost:8090
+      SALES_API_URL: http://sales:8000/api/v1
+      TICKETS_API_URL: http://tickets:8000/api/v1
+      # Перший адміністратор і демо-користувачі ролей – лише для розробки й демонстрації.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@ticketsales.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-dev-password}
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-1}
+    depends_on:
+      - web-db
+      - sales
+      - tickets
+
+  # Власна база web: облікові записи й ролі (ADR-006). Інші сервіси до неї не звертаються.
+  web-db:
+    image: mongo:7
+    volumes:
+      - web-data:/data/db
 
   sales:
     build:
@@ -18,7 +49,11 @@ services:
       args:
         SERVICE: sales
     command: python -m django runserver 0.0.0.0:8000 --noreload --settings=sales.config.settings
+    # Лише localhost: JSON API для Meteor, запущеного на машині розробника (meteor run, ADR-006).
+    ports:
+      - "127.0.0.1:8100:8000"
     environment:
+      <<: *auth-secret
       PAYMENTS_URL: http://payments:8000
       REDIS_URL: redis://redis:6379/0
       SALES_DATABASE_URL: postgresql://sales:sales@sales-db:5432/sales
@@ -49,7 +84,11 @@ services:
       args:
         SERVICE: tickets
     command: python -m django runserver 0.0.0.0:8000 --noreload --settings=tickets.config.settings
+    # Лише localhost: JSON API для Meteor, запущеного на машині розробника (meteor run, ADR-006).
+    ports:
+      - "127.0.0.1:8200:8000"
     environment:
+      <<: *auth-secret
       TICKETS_DB_PATH: /data/tickets.sqlite3
       REDIS_URL: redis://redis:6379/0
     volumes:
@@ -96,6 +135,7 @@ services:
       retries: 15
 
 volumes:
+  web-data:
   sales-data:
   payments-data:
   tickets-data:

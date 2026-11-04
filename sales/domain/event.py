@@ -6,6 +6,7 @@ from enum import Enum
 from uuid import UUID
 
 from sales.domain.exceptions import (
+    InvalidEventError,
     InvalidSeatSelectionError,
     InvalidSeatTransitionError,
     SalesNotStartedError,
@@ -68,8 +69,10 @@ class Event:
     """Захід – корінь агрегату: єдина точка зміни стану своїх місць.
 
     starts_at – час початку заходу; у ЛР 3 передається сервісу tickets у події OrderPaid.
-    Інваріанти: кожне місце належить до однієї з цінових категорій заходу;
-    одне місце не може бути зарезервоване чи продане двічі (С-03).
+    organizer_id – організатор, який створив захід (ADR-006); у демо-заходу ЛР 2 – немає.
+    Інваріанти: є хоча б одне місце; захід починається пізніше за старт продажу; кожне місце
+    належить до однієї з цінових категорій заходу; одне місце не може бути зарезервоване чи
+    продане двічі (С-03).
     """
 
     id: UUID
@@ -78,8 +81,15 @@ class Event:
     categories: dict[str, PriceCategory]
     seats: dict[SeatPosition, Seat]
     starts_at: datetime
+    organizer_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if not self.title.strip():
+            raise InvalidEventError("Назва заходу не може бути порожньою.")
+        if not self.seats:
+            raise InvalidEventError("У заході має бути хоча б одне місце.")
+        if self.starts_at <= self.sales_start:
+            raise InvalidEventError("Захід має починатися пізніше за старт продажу.")
         for seat in self.seats.values():
             if seat.category not in self.categories:
                 raise UnknownPriceCategoryError(

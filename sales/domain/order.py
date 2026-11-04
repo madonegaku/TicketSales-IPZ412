@@ -34,6 +34,7 @@ class Order:
     id: UUID
     reservation_id: UUID
     event_id: UUID
+    buyer_id: UUID
     lines: tuple[OrderLine, ...]
     payment_deadline: datetime
     status: OrderStatus = OrderStatus.AWAITING_PAYMENT
@@ -50,7 +51,11 @@ class Order:
         lines = tuple(
             OrderLine(position, event.price_of(position)) for position in reservation.positions
         )
-        return cls(uuid4(), reservation.id, event.id, lines, reservation.expires_at)
+        return cls(uuid4(), reservation.id, event.id, reservation.buyer_id, lines, reservation.expires_at)
+
+    def belongs_to(self, buyer_id: UUID) -> bool:
+        """Чи належить замовлення покупцю: оплатити й переглянути його може лише власник."""
+        return self.buyer_id == buyer_id
 
     @property
     def total(self) -> Money:

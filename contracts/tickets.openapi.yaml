@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: Сервіс квитків (tickets) – API для інтерфейсу web
+  version: 1.0.0
+  description: |
+    JSON API сервісу tickets для сервісу web на Meteor (ADR-006). Клієнт – лише сервер web у
+    внутрішній мережі Docker; шлюз закриває шлях /api/ ззовні. Сторінки Django tickets
+    (/validate/, /tickets/orders/…) цим контрактом не описуються.
+
+    Автентифікація – той самий JWT від web, що й у contracts/sales.openapi.yaml.
+
+    Обмеження: tickets не знає покупця замовлення (подія OrderPaid v1 його не містить), тому
+    перед запитом квитків web перевіряє власника замовлення в sales (GET /api/v1/orders/{id}).
+
+    Гарантії: квиток пропускає лише один раз і лише на свій захід (С-07); порожній список
+    квитків означає, що подія OrderPaid ще обробляється (узгодженість у кінцевому підсумку, ≈ 1 с).
+
+    Версіонування: версія в шляху (/api/v1).
+servers:
+  - url: http://tickets:8000/api/v1
+    description: Внутрішня мережа Docker Compose
+security:
+  - bearerAuth: []
+paths:
+  /orders/{order_id}/tickets:
+    get:
+      operationId: getOrderTickets
+      summary: Квитки замовлення (роль buyer або admin)
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Квитки замовлення; порожній список – ще видаються
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order_id, tickets]
+                properties:
+                  order_id: {type: string, format: uuid}
+                  tickets:
+                    type: array
+                    items: {$ref: "#/components/schemas/Ticket"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+  /validations:
+    post:
+      operationId: validateTicket
+      summary: Перевірити квиток на вході (роль inspector або admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, event_id]
+              properties:
+                code: {type: string, minLength: 1}
+                event_id: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Прохід дозволено; квиток тепер використаний
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [admitted, sector, row, number]
+                properties:
+                  admitted: {const: true}
+                  sector: {type: string}
+                  row: {type: integer, minimum: 1}
+                  number: {type: integer, minimum: 1}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404":
+          description: Квиток із таким кодом не знайдено (not_found)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+        "409":
+          description: Прохід заборонено – квиток уже використано (ticket_already_used) або він недійсний
+            (invalid_ticket – інший захід чи повернений)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Помилка з машиночитним кодом
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+  schemas:
+    Ticket:
+      type: object
+      required: [code, sector, row, number, status]
+      properties:
+        code: {type: string, minLength: 1, description: "код для QR"}
+        sector: {type: string}
+        row: {type: integer, minimum: 1}
+        number: {type: integer, minimum: 1}
+        status: {enum: [VALID, USED, REFUNDED]}
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string, pattern: "^[a-z_]+$"}
+        message: {type: string}

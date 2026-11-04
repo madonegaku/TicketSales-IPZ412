@@ -35,6 +35,9 @@ class InMemoryEventRepository(EventRepository):
             raise NotFoundError("Захід не знайдено.")
         return deepcopy(self._events[event_id])
 
+    def list_all(self) -> list[Event]:
+        return sorted((deepcopy(event) for event in self._events.values()), key=lambda event: event.starts_at)
+
     def get_for_update(self, event_id: UUID) -> Event:
         return self.get(event_id)
 
@@ -71,6 +74,13 @@ class InMemoryOrderRepository(OrderRepository):
         if order_id not in self._orders:
             raise NotFoundError("Замовлення не знайдено.")
         return deepcopy(self._orders[order_id])
+
+    def list_by_buyer(self, buyer_id: UUID) -> list[Order]:
+        orders = [deepcopy(order) for order in self._orders.values() if order.buyer_id == buyer_id]
+        return sorted(orders, key=lambda order: order.payment_deadline, reverse=True)
+
+    def list_by_event(self, event_id: UUID) -> list[Order]:
+        return [deepcopy(order) for order in self._orders.values() if order.event_id == event_id]
 
     def get_for_update(self, order_id: UUID) -> Order:
         return self.get(order_id)

@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-em!ycl4qaz9js99e(b4optyz0ssr4$^ek&x!gq48rdg+vfssmg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# localhost – браузер через шлюз; sales – сервер web усередині мережі Compose (ADR-006).
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "sales"]
 
 
 # Application definition
@@ -135,6 +136,11 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 # Власна база sales – PostgreSQL (ЛР 5); у Docker задає змінна середовища.
 # Не задано – сховище в пам'яті процесу (запуск без Docker, тести складання).
 SALES_DATABASE_URL = os.environ.get("SALES_DATABASE_URL") or None
+
+
+# Секрет підпису токенів доступу від сервісу web (ADR-006); спільний для web, sales і tickets.
+# Значення за замовчуванням – лише для розробки; у Docker задає змінна середовища.
+AUTH_TOKEN_SECRET = os.environ.get("AUTH_TOKEN_SECRET", "dev-only-change-me-ticketsales-web-token")
 
 
 # Кеш схеми залу в Redis (ЛР 5): час життя запису в секундах; 0 – кеш вимкнено.

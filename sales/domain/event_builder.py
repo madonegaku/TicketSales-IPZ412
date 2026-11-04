@@ -24,6 +24,11 @@ class EventBuilder:
         self._starts_at: datetime | None = None
         self._categories: dict[str, PriceCategory] = {}
         self._seats: dict[SeatPosition, Seat] = {}
+        self._organizer_id: UUID | None = None
+
+    def organizer(self, organizer_id: UUID) -> "EventBuilder":
+        self._organizer_id = organizer_id
+        return self
 
     def sales_start(self, moment: datetime) -> "EventBuilder":
         self._sales_start = moment
@@ -56,5 +61,6 @@ class EventBuilder:
         if self._sales_start is None or self._starts_at is None:
             raise ValueError("Для заходу потрібно задати старт продажу й час початку.")
         return Event(
-            self._event_id, self._title, self._sales_start, dict(self._categories), dict(self._seats), self._starts_at
+            self._event_id, self._title, self._sales_start, dict(self._categories), dict(self._seats), self._starts_at,
+            self._organizer_id,
         )

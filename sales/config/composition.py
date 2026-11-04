@@ -15,7 +15,9 @@ from typing import Protocol
 import httpx
 import redis
 
+from sales.application.get_buyer_orders import GetBuyerOrders
 from sales.application.get_hall_layout import GetHallLayout, HallLayoutCache
+from sales.application.list_events import ListEvents
 from sales.application.pay_order import PayOrder
 from sales.application.publish_pending_events import PublishPendingEvents
 from sales.application.reserve_seats import ReserveSeats
@@ -88,6 +90,8 @@ class Container:
 
         self.outbox = storage.outbox
         self.get_hall_layout = GetHallLayout(storage.events, cache)
+        self.list_events = ListEvents(storage.events)
+        self.get_buyer_orders = GetBuyerOrders(storage.orders, storage.events)
         self.reserve_seats = ReserveSeats(
             storage.events, storage.reservations, storage.orders, utc_now, storage.unit_of_work, cache
         )

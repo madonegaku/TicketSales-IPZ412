@@ -21,9 +21,16 @@ services:
     environment:
       PAYMENTS_URL: http://payments:8000
       REDIS_URL: redis://redis:6379/0
+      SALES_DATABASE_URL: postgresql://sales:sales@sales-db:5432/sales
+      # Час життя кешу схеми залу, с; для вимірювання без кешу: $env:HALL_LAYOUT_CACHE_TTL=0
+      HALL_LAYOUT_CACHE_TTL: ${HALL_LAYOUT_CACHE_TTL:-30}
     depends_on:
-      - payments
-      - redis
+      payments:
+        condition: service_started
+      redis:
+        condition: service_started
+      sales-db:
+        condition: service_healthy
 
   payments:
     build:
@@ -70,7 +77,26 @@ services:
     volumes:
       - redis-data:/data
 
+  # Власна база sales (ЛР 5, ADR-002): до неї підключається лише sales.
+  # Порт 5433 на localhost – для інтеграційних тестів і psql з хоста розробника.
+  sales-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sales
+      POSTGRES_USER: sales
+      POSTGRES_PASSWORD: sales
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - sales-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales -d sales"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
+  sales-data:
   payments-data:
   tickets-data:
   redis-data:

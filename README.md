@@ -6,11 +6,11 @@
 
 ## Команда (НУ «ОЮА», група ІПЗ412)
 
-| Учасник | Роль у ЛР 1 | Роль у ЛР 2 | Роль у ЛР 3 | Роль у ЛР 4 |
-| --- | --- | --- | --- | --- |
-| **Пакін Денис Сергійович** | Архітектор | Аналітик домену | Інженер з якості | Архітектор |
-| **Шавейко Олександр Леонідович** | Аналітик домену | Інженер з якості | Архітектор | Аналітик домену |
-| **Пащенко Олександр Анатолійович** | Інженер з якості | Архітектор | Аналітик домену | Інженер з якості |
+| Учасник | Роль у ЛР 1 | Роль у ЛР 2 | Роль у ЛР 3 | Роль у ЛР 4 | Роль у ЛР 5 |
+| --- | --- | --- | --- | --- | --- |
+| **Пакін Денис Сергійович** | Архітектор | Аналітик домену | Інженер з якості | Архітектор | Аналітик домену |
+| **Шавейко Олександр Леонідович** | Аналітик домену | Інженер з якості | Архітектор | Аналітик домену | Інженер з якості |
+| **Пащенко Олександр Анатолійович** | Інженер з якості | Архітектор | Аналітик домену | Інженер з якості | Архітектор |
 
 Викладач: Ніколаєнко С.В.
 
@@ -19,7 +19,7 @@
 | | |
 | --- | --- |
 | **Архітектурний стиль** | Три сервіси за доменними контекстами (sales, payments, tickets), шлюз і брокер подій ([ADR-004](docs/adr/0004-service-boundaries-and-interaction.md), замінює [ADR-001](docs/adr/0001-architecture-style.md)) |
-| **Технологічний стек** | Python 3.12, Django 5, Redis 7 (Streams), nginx, Docker Compose; PostgreSQL 16 – у ЛР 5 ([ADR-002](docs/adr/0002-technology-stack.md)) |
+| **Технологічний стек** | Python 3.12, Django 5, PostgreSQL 16 (sales), SQLite (payments, tickets), Redis 7 (Streams і кеш), nginx, Docker Compose ([ADR-002](docs/adr/0002-technology-stack.md), [ADR-005](docs/adr/0005-sales-storage-postgresql.md)) |
 | **Найкритичніший атрибут якості** | Надійність: жодного подвійного продажу місця і жодного втраченого оплаченого замовлення |
 | **Зовнішні інтеграції** | LiqPay, Email-сервіс, Google reCAPTCHA, ПРРО Checkbox |
 
@@ -45,6 +45,7 @@
 - [ADR-002: Технологічний стек – Python, Django, PostgreSQL, Celery, Redis](docs/adr/0002-technology-stack.md)
 - [ADR-003: Доменна модель відокремлена від Django ORM](docs/adr/0003-domain-independent-of-orm.md)
 - [ADR-004: Межі сервісів за доменними контекстами та способи їх взаємодії](docs/adr/0004-service-boundaries-and-interaction.md)
+- [ADR-005: Сховище sales – PostgreSQL з доступом через SQL, власні міграції та транзакційна вихідна черга](docs/adr/0005-sales-storage-postgresql.md)
 
 Записи зберігаються в каталозі [`docs/adr/`](docs/adr/). Прийняті записи не редагуються заднім числом: перегляд рішення оформлюється новим записом зі статусом «замінює ADR-00N» (правила – у [docs/adr/README.md](docs/adr/README.md)).
 
@@ -68,7 +69,7 @@
 
 | Сервіс | Доменний контекст | Власні дані | Каталог |
 | --- | --- | --- | --- |
-| sales | Продаж: схема залу, резервування, замовлення | у пам'яті процесу + вихідна черга подій (PostgreSQL – у ЛР 5) | [`sales/`](sales/) |
+| sales | Продаж: схема залу, резервування, замовлення | у ЛР 3 – пам'ять процесу; з ЛР 5 – PostgreSQL 16, том `sales-data` | [`sales/`](sales/) |
 | payments | Оплати: списання коштів, ідемпотентність за `order_id` | SQLite, том `payments-data` | [`payments/`](payments/) |
 | tickets | Доступ на захід: видача квитків, контроль на вході | SQLite, том `tickets-data` | [`tickets/`](tickets/) |
 | gateway | Шлюз nginx – єдина точка входу | – | [`gateway/`](gateway/) |
@@ -101,12 +102,13 @@ docker compose up --build
 
 Після запуску відкрийте http://localhost:8080/ – вибір місць, оплата, «Мої квитки», контроль на вході (`/validate/`). Збій окремого сервісу імітується командами `docker compose stop <сервіс>` і `docker compose start <сервіс>`.
 
-Тести й перевірка залежностей:
+Тести й перевірка залежностей (інтеграційним тестам sales потрібен контейнер `sales-db`; без нього вони пропускаються):
 
 ```
 py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+docker compose up -d sales-db
 python -m pytest
 lint-imports
 ```
@@ -126,6 +128,21 @@ lint-imports
 
 Звіт (DOCX): [docs/reports/lab4-report.docx](docs/reports/lab4-report.docx)
 
+## Лабораторна робота № 5: Архітектура даних – володіння, кешування та узгодженість
+
+Повний опис – [docs/lab5/data-architecture.md](docs/lab5/data-architecture.md), рішення про сховище sales – [ADR-005](docs/adr/0005-sales-storage-postgresql.md).
+
+| Вимога методички | Реалізація | Доказ |
+| --- | --- | --- |
+| Модель даних кожного сервісу | sales – PostgreSQL 16 (агрегати Event, Reservation, Order, таблиця `outbox`); payments і tickets – SQLite | діаграми `docs/lab5/model_*.png` |
+| Матриця володіння | у кожної сутності один власник; копії – лише з подій чи запитів | `data-architecture.md`, розділ 2 |
+| Локальна копія | квиток у tickets: `order_id`, `event_id`, позиція місця з події `OrderPaid` | розділ 3 |
+| Міграція «розширення – скорочення» | payments: сума `amount TEXT` → `amount_minor INTEGER`, міграції 0002–0004 | тести сумісності версій коду після кожної міграції |
+| Кеш із явною інвалідизацією | схема залу в Redis, ключ `sales:hall-layout:v1:{event_id}`, видалення після фіксації, 30 с | p50 −17–24 %, транзакцій бази на перегляд −95 % |
+| Узгодження через подію | транзакційний outbox у sales, ідемпотентний обробник `OrderPaid` у tickets | повторне надсилання події не змінює квитків; вікно неузгодженості ≤ 1 с |
+
+Вимірювання: `tools/latency.py`, `tools/compare_cache.py`, `tools/order_paid_lag.py`; повторне надсилання події – `tools/resend_last_order_paid.py`.
+
 ## Структура репозиторію
 
 ```
@@ -135,10 +152,10 @@ lint-imports
 ├── LICENSE
 ├── requirements.txt          # залежності сервісів і тестів
 ├── pyproject.toml            # контракти import-linter, налаштування pytest
-├── compose.yaml              # шлюз, три сервіси, споживач подій, Redis
+├── compose.yaml              # шлюз, три сервіси, споживач подій, Redis, PostgreSQL sales
 ├── Dockerfile                # образ одного сервісу (аргумент SERVICE)
 ├── manage.py                 # локальний запуск sales
-├── tools/measure.py          # показники коду для ЛР 4
+├── tools/                    # показники коду (ЛР 4), вимірювання часу відповіді й неузгодженості (ЛР 5)
 ├── gateway/nginx.conf        # маршрути шлюзу
 ├── contracts/                # OpenAPI payments, AsyncAPI OrderPaid
 ├── sales/                    # domain, application, infrastructure, presentation, config
@@ -152,7 +169,8 @@ lint-imports
     ├── …                     # документи ЛР 1
     ├── lab3/                 # межі сервісів, експеримент
     ├── lab4/                 # патерни: проблеми, показники, діаграми класів
-    ├── adr/                  # ADR-001 – ADR-004
+    ├── lab5/                 # архітектура даних: моделі, володіння, кеш, вимірювання
+    ├── adr/                  # ADR-001 – ADR-005
     ├── assets/
     └── reports/              # звіти
 ```
@@ -167,6 +185,7 @@ lint-imports
 | `lab-2` | Реалізація багатошарового ядра системи |
 | `lab-3` | Декомпозиція системи на сервіси та проєктування контрактів взаємодії |
 | `lab-4` | Застосування патернів проєктування в рефакторингу коду |
+| `lab-5` | Архітектура даних: володіння, кешування та узгодженість |
 
 ## Ліцензія
 

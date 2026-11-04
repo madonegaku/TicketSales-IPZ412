@@ -1,13 +1,16 @@
 """Репозиторії в пам'яті – реалізації доменних інтерфейсів для ЛР 2.
 
 Зберігають копії агрегатів, а не самі об'єкти: як і справжнє сховище, вони
-бачать зміни лише після save(). У ЛР 5 їх замінять реалізації на Django ORM.
+бачать зміни лише після save(). У ЛР 5 робоча реалізація – PostgreSQL
+(sales/infrastructure/postgres); ці лишаються для тестів сценаріїв і запуску без бази.
 """
 import threading
+from contextlib import AbstractContextManager, nullcontext
 from copy import deepcopy
 from datetime import datetime
 from uuid import UUID
 
+from sales.application.unit_of_work import UnitOfWork
 from sales.domain.event import Event
 from sales.domain.exceptions import NotFoundError
 from sales.domain.order import Order
@@ -31,6 +34,9 @@ class InMemoryEventRepository(EventRepository):
         if event_id not in self._events:
             raise NotFoundError("Захід не знайдено.")
         return deepcopy(self._events[event_id])
+
+    def get_for_update(self, event_id: UUID) -> Event:
+        return self.get(event_id)
 
     def save(self, event: Event) -> None:
         self._events[event.id] = deepcopy(event)
@@ -66,8 +72,18 @@ class InMemoryOrderRepository(OrderRepository):
             raise NotFoundError("Замовлення не знайдено.")
         return deepcopy(self._orders[order_id])
 
+    def get_for_update(self, order_id: UUID) -> Order:
+        return self.get(order_id)
+
     def save(self, order: Order) -> None:
         self._orders[order.id] = deepcopy(order)
+
+
+class InMemoryUnitOfWork(UnitOfWork):
+    """Без транзакцій: сховище в пам'яті змінюється лише через save() після всіх перевірок."""
+
+    def transaction(self) -> AbstractContextManager[None]:
+        return nullcontext()
 
 
 class InMemoryOutbox(Outbox):

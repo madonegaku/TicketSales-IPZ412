@@ -10,35 +10,36 @@ from uuid import UUID
 from payments.domain.payment import Payment, PaymentStatus
 from payments.domain.repositories import PaymentRepository
 from payments.domain.value_objects import Money
+from payments.infrastructure.migrate import migrate
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS payments (
-    order_id TEXT PRIMARY KEY,
-    payment_id TEXT NOT NULL UNIQUE,
-    amount TEXT NOT NULL,
-    currency TEXT NOT NULL,
-    status TEXT NOT NULL,
-    decline_reason TEXT,
-    created_at TEXT NOT NULL
-)
-"""
-
+# Сума зберігається цілим числом копійок (amount_minor); перехід з текстового amount виконано
+# міграціями 0002–0004 за шаблоном «розширення – скорочення».
 SELECT_BY_ORDER = """
-SELECT payment_id, order_id, amount, currency, status, decline_reason, created_at
+SELECT payment_id, order_id, amount_minor, currency, status, decline_reason, created_at
 FROM payments WHERE order_id = ?
 """
 
 UPSERT = """
-INSERT INTO payments (order_id, payment_id, amount, currency, status, decline_reason, created_at)
+INSERT INTO payments (order_id, payment_id, amount_minor, currency, status, decline_reason, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(order_id) DO UPDATE SET
     payment_id = excluded.payment_id,
-    amount = excluded.amount,
+    amount_minor = excluded.amount_minor,
     currency = excluded.currency,
     status = excluded.status,
     decline_reason = excluded.decline_reason,
     created_at = excluded.created_at
 """
+
+
+def to_minor(money: Money) -> int:
+    """Сума в копійках: Money гарантує не більше двох знаків після коми, тож множення точне."""
+    return int(money.amount * 100)
+
+
+def from_minor(amount_minor: int) -> Decimal:
+    """Копійки → гривні з двома знаками: 120000 → Decimal('1200.00')."""
+    return Decimal(amount_minor).scaleb(-2)
 
 
 class SqlitePaymentRepository(PaymentRepository):
@@ -49,19 +50,19 @@ class SqlitePaymentRepository(PaymentRepository):
 
     def __init__(self, path: str | Path) -> None:
         self._path = str(path)
-        with closing(sqlite3.connect(self._path)) as connection, connection:
-            connection.execute(SCHEMA)
+        with closing(sqlite3.connect(self._path)) as connection:
+            migrate(connection)
 
     def find_by_order(self, order_id: UUID) -> Payment | None:
         with closing(sqlite3.connect(self._path)) as connection:
             row = connection.execute(SELECT_BY_ORDER, (str(order_id),)).fetchone()
         if row is None:
             return None
-        payment_id, order, amount, currency, status, decline_reason, created_at = row
+        payment_id, order, amount_minor, currency, status, decline_reason, created_at = row
         return Payment(
             UUID(payment_id),
             UUID(order),
-            Money(Decimal(amount), currency),
+            Money(from_minor(amount_minor), currency),
             PaymentStatus(status),
             datetime.fromisoformat(created_at),
             decline_reason,
@@ -71,7 +72,7 @@ class SqlitePaymentRepository(PaymentRepository):
         values = (
             str(payment.order_id),
             str(payment.id),
-            str(payment.amount.amount),
+            to_minor(payment.amount),
             payment.amount.currency,
             payment.status.value,
             payment.decline_reason,

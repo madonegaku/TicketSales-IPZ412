@@ -22,7 +22,9 @@ from sales.infrastructure.in_memory import (
     InMemoryOrderRepository,
     InMemoryReservationRepository,
     InMemoryOutbox,
+    InMemoryUnitOfWork,
 )
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache
 from sales.infrastructure.payment import StubPaymentGateway
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
@@ -52,14 +54,17 @@ def gateway():
 
 @pytest.fixture
 def order_id(events, orders):
-    reserve_seats = ReserveSeats(events, InMemoryReservationRepository(), orders, lambda: NOW)
+    reserve_seats = ReserveSeats(
+        events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork(), NoHallLayoutCache()
+    )
     command = ReserveSeatsCommand(EVENT_ID, uuid4(), (("Партер", 1, 1), ("Партер", 1, 2)))
     return reserve_seats.execute(command).order_id
 
 
 def make_pay_order(events, orders, gateway, minutes_later=1, outbox=None):
     outbox = outbox if outbox is not None else InMemoryOutbox()
-    return PayOrder(events, orders, gateway, outbox, lambda: NOW + timedelta(minutes=minutes_later))
+    clock = lambda: NOW + timedelta(minutes=minutes_later)  # noqa: E731
+    return PayOrder(events, orders, gateway, outbox, clock, InMemoryUnitOfWork(), NoHallLayoutCache())
 
 
 def test_paid_order_sells_seats_and_is_charged(events, orders, gateway, order_id):
@@ -131,6 +136,32 @@ def test_paid_order_puts_order_paid_event_into_outbox(events, orders, gateway, o
     [event] = outbox.pending()
     assert (event.order_id, event.event_id) == (order_id, EVENT_ID)
     assert set(event.seats) == {A1, A2}
+
+
+def test_reservation_made_during_payment_call_is_not_overwritten(events, orders, order_id):
+    """Поки триває виклик payments, інший покупець резервує вільне місце того самого заходу.
+
+    Якщо PayOrder зберіг би копію заходу, прочитану до виклику, резервування сусіда зникло б,
+    і місце продали б удруге (С-03). Тому після оплати захід перечитується.
+    """
+    a3 = SeatPosition("Партер", 1, 3)
+    event = events.get(EVENT_ID)
+    event.seats[a3] = Seat(a3, "Партер")
+    events.save(event)
+    neighbour = ReserveSeats(
+        events, InMemoryReservationRepository(), orders, lambda: NOW, InMemoryUnitOfWork(), NoHallLayoutCache()
+    )
+
+    class GatewayWithConcurrentBuyer(StubPaymentGateway):
+        def charge(self, order_id, amount):
+            neighbour.execute(ReserveSeatsCommand(EVENT_ID, uuid4(), (("Партер", 1, 3),)))
+            super().charge(order_id, amount)
+
+    make_pay_order(events, orders, GatewayWithConcurrentBuyer()).execute(PayOrderCommand(order_id))
+
+    seats = events.get(EVENT_ID).seats
+    assert (seats[A1].status, seats[A2].status) == (SeatStatus.SOLD, SeatStatus.SOLD)
+    assert seats[a3].status is SeatStatus.RESERVED
 
 
 @pytest.mark.parametrize("failing_gateway", [StubPaymentGateway(decline=True), StubPaymentGateway(unavailable=True)])

@@ -66,7 +66,11 @@ class OrderPaidConsumer:
             logger.error("Повідомлення %s відкинуто – не відповідає контракту: %s", message.message_id, exc)
         else:
             issued = self._issue_tickets.execute(command)
-            logger.info("OrderPaid %s: видано квитків – %d", command.order_id, issued)
+            if issued:
+                logger.info("OrderPaid %s: видано квитків – %d", command.order_id, issued)
+            else:
+                logger.info("OrderPaid %s: повторне повідомлення %s – квитки вже видано, нічого не змінено",
+                            command.order_id, message.message_id)
         self._messages.ack(message.message_id)
 
     def run_forever(self) -> None:

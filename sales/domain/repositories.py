@@ -1,7 +1,11 @@
 """Інтерфейси репозиторіїв: колекції агрегатів у термінах предметної області.
 
 Домен лише оголошує, що йому потрібно; реалізації – в інфраструктурному шарі
-(у ЛР 2 – у пам'яті, у ЛР 5 – Django ORM і PostgreSQL).
+(у ЛР 2 – у пам'яті, у ЛР 5 – PostgreSQL).
+
+get_for_update() – завантаження агрегату, який сценарій збирається змінити: у PostgreSQL
+рядок блокується до кінця транзакції, тож два одночасні сценарії змінюють агрегат по черзі,
+а не затирають зміни один одного (С-03 – жодного подвійного продажу місця).
 """
 
 from abc import ABC, abstractmethod
@@ -19,6 +23,10 @@ class EventRepository(ABC):
     @abstractmethod
     def get(self, event_id: UUID) -> Event:
         """Повертає захід; якщо його немає – кидає NotFoundError."""
+
+    @abstractmethod
+    def get_for_update(self, event_id: UUID) -> Event:
+        """Як get(), але захід заблоковано для змін іншими сценаріями до кінця транзакції."""
 
     @abstractmethod
     def save(self, event: Event) -> None:
@@ -43,6 +51,10 @@ class OrderRepository(ABC):
     @abstractmethod
     def get(self, order_id: UUID) -> Order:
         """Повертає замовлення; якщо його немає – кидає NotFoundError."""
+
+    @abstractmethod
+    def get_for_update(self, order_id: UUID) -> Order:
+        """Як get(), але замовлення заблоковано для змін іншими сценаріями до кінця транзакції."""
 
     @abstractmethod
     def save(self, order: Order) -> None:

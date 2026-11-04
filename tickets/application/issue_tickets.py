@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from tickets.domain.exceptions import TicketsAlreadyIssuedError
 from tickets.domain.paid_order import PaidOrder
 from tickets.domain.repositories import TicketRepository
 from tickets.domain.ticket import Ticket
@@ -21,9 +22,13 @@ class IssueTicketsCommand:
 class IssueTickets:
     """Видає по квитку на кожне місце оплаченого замовлення.
 
-    Ідемпотентність: подія може надійти повторно (доставка «щонайменше один раз»), тож якщо
-    квитки за order_id уже видано, повторна обробка нічого не змінює. Квитки замовлення
-    зберігаються атомарно.
+    Ідемпотентність за ключем order_id: подія може надійти повторно (доставка «щонайменше один
+    раз»; та сама подія вдруге з outbox після збою sales до позначки «опубліковано»), тож якщо
+    квитки за замовленням уже видано, повторна обробка нічого не змінює. Ключ – саме замовлення,
+    а не message_id: повтор із новим ідентифікатором повідомлення теж розпізнається.
+    Два рівні захисту: перевірка exists_for_order (швидкий шлях) і унікальність квитка на місце
+    замовлення в сховищі – на випадок, коли дві обробки однієї події пройшли перевірку одночасно.
+    Квитки замовлення зберігаються атомарно.
     """
 
     def __init__(self, tickets: TicketRepository) -> None:
@@ -35,5 +40,8 @@ class IssueTickets:
             return 0
         positions = tuple(SeatPosition(*seat) for seat in command.seats)
         tickets = Ticket.issue_for(PaidOrder(command.order_id, command.event_id, positions))
-        self._tickets.add_all(tickets)
+        try:
+            self._tickets.add_all(tickets)
+        except TicketsAlreadyIssuedError:
+            return 0
         return len(tickets)

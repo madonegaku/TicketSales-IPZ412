@@ -1,10 +1,11 @@
-"""Демонстраційні дані для ЛР 2: один захід зі схемою залу (у ЛР 5 – з бази даних)."""
+"""Демонстраційні дані: один захід зі схемою залу."""
 
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
 from sales.domain.event_builder import EventBuilder
+from sales.domain.exceptions import NotFoundError
 from sales.domain.repositories import EventRepository
 from sales.domain.value_objects import Money
 
@@ -24,3 +25,15 @@ def seed_demo_event(events: EventRepository) -> None:
         .build()
     )
     events.save(event)
+
+
+def ensure_demo_event(events: EventRepository) -> None:
+    """Додає демо-захід лише тоді, коли його ще немає.
+
+    Сховище в PostgreSQL переживає перезапуск sales: повторне seed_demo_event() перезаписало
+    б стан місць і «звільнило» б уже продані місця.
+    """
+    try:
+        events.get(DEMO_EVENT_ID)
+    except NotFoundError:
+        seed_demo_event(events)

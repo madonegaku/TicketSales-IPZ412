@@ -13,6 +13,8 @@ class OutboxRelay(threading.Thread):
     """Потік-демон: раз на interval секунд викликає PublishPendingEvents.
 
     Недоступність брокера не зупиняє потік: події чекають у черзі до наступної спроби.
+    Так само переживає збій бази sales (черга – таблиця outbox): будь-яка інша помилка
+    журналюється, і потік пробує знову, а не завершується мовчки.
     """
 
     def __init__(self, publish_pending: PublishPendingEvents, interval: float = 1.0) -> None:
@@ -27,6 +29,8 @@ class OutboxRelay(threading.Thread):
                 self._publish_pending.execute()
             except EventPublishError as exc:
                 logger.warning("%s", exc)
+            except Exception:
+                logger.exception("Не вдалося опублікувати події з вихідної черги – повторна спроба.")
 
     def stop(self) -> None:
         self._stopped.set()

@@ -7,10 +7,12 @@ from uuid import uuid4
 from sales.application.get_hall_layout import GetHallLayout
 from sales.application.reserve_seats import ReserveSeats, ReserveSeatsCommand
 from sales.infrastructure.demo_data import DEMO_EVENT_ID, seed_demo_event
+from sales.infrastructure.hall_layout_cache import NoHallLayoutCache
 from sales.infrastructure.in_memory import (
     InMemoryEventRepository,
     InMemoryOrderRepository,
     InMemoryReservationRepository,
+    InMemoryUnitOfWork,
 )
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
@@ -20,11 +22,12 @@ def test_hall_layout_shows_prices_and_reserved_seats():
     events = InMemoryEventRepository()
     seed_demo_event(events)
     reserve_seats = ReserveSeats(
-        events, InMemoryReservationRepository(), InMemoryOrderRepository(), lambda: NOW
+        events, InMemoryReservationRepository(), InMemoryOrderRepository(), lambda: NOW, InMemoryUnitOfWork(),
+        NoHallLayoutCache(),
     )
     reserve_seats.execute(ReserveSeatsCommand(DEMO_EVENT_ID, uuid4(), (("VIP", 1, 1),)))
 
-    layout = GetHallLayout(events).execute(DEMO_EVENT_ID)
+    layout = GetHallLayout(events, NoHallLayoutCache()).execute(DEMO_EVENT_ID)
     seats = {(seat.sector, seat.row, seat.number): seat for seat in layout.seats}
 
     assert len(layout.seats) == 56

@@ -13,6 +13,7 @@ from uuid import UUID
 import redis
 
 from tickets.application.issue_tickets import IssueTickets, IssueTicketsCommand
+from tickets.infrastructure.redis_stream import BrokerUnavailableError, RedisConsumerGroup, StreamMessage
 
 ORDER_PAID_STREAM = "sales.order-paid.v1"
 CONSUMER_GROUP = "tickets"
@@ -42,6 +43,7 @@ class OrderPaidConsumer:
         self._issue_tickets = issue_tickets
         self._consumer_name = consumer_name
         self._stream = stream
+        self._messages = RedisConsumerGroup(client, stream, CONSUMER_GROUP, consumer_name)
 
     def ensure_group(self) -> None:
         """Створює групу споживачів, якщо її ще немає (з першого повідомлення потоку)."""
@@ -53,25 +55,20 @@ class OrderPaidConsumer:
 
     def process_batch(self, start_id: str = ">", block_ms: int | None = 5000) -> int:
         """Обробляє порцію повідомлень: «>» – нові, «0» – власні непідтверджені. Повертає їх кількість."""
-        response = self._client.xreadgroup(
-            CONSUMER_GROUP, self._consumer_name, {self._stream: start_id}, count=10, block=block_ms
-        )
-        processed = 0
-        for _stream, entries in response or []:
-            for message_id, fields in entries:
-                self._handle(message_id, fields)
-                processed += 1
-        return processed
+        messages = self._messages.read(start_id, block_ms)
+        for message in messages:
+            self._handle(message)
+        return len(messages)
 
-    def _handle(self, message_id: str, fields: dict) -> None:
+    def _handle(self, message: StreamMessage) -> None:
         try:
-            command = to_command(json.loads(fields["payload"]))
+            command = to_command(json.loads(message.fields["payload"]))
         except (KeyError, ValueError, TypeError) as exc:
-            logger.error("Повідомлення %s відкинуто – не відповідає контракту: %s", message_id, exc)
+            logger.error("Повідомлення %s відкинуто – не відповідає контракту: %s", message.message_id, exc)
         else:
             issued = self._issue_tickets.execute(command)
             logger.info("OrderPaid %s: видано квитків – %d", command.order_id, issued)
-        self._client.xack(self._stream, CONSUMER_GROUP, message_id)
+        self._messages.ack(message.message_id)
 
     def run_forever(self) -> None:
         """Головний цикл процесу: спершу недообробені після збою, далі нові; переживає недоступність Redis."""
@@ -81,6 +78,6 @@ class OrderPaidConsumer:
                 self.process_batch(start_id="0", block_ms=None)
                 while True:
                     self.process_batch()
-            except redis.ConnectionError:
+            except (redis.ConnectionError, BrokerUnavailableError):
                 logger.warning("Redis недоступний – повторна спроба за 1 с.")
                 time.sleep(1)
